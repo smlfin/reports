@@ -33,6 +33,8 @@ const noDetailedDataMessage = document.getElementById('no-detailed-data-message'
 const employeeDetailsModal = document.getElementById('employee-details-modal');
 const closeEmployeeModalBtn = document.getElementById('close-employee-modal');
 const employeeModalTitle = document.getElementById('employee-modal-title');
+const employeeDetailsTable = document.getElementById('employee-details-table'); // Get the entire table
+const employeeDetailsTableHead = document.querySelector('#employee-details-table thead tr');
 const employeeDetailsTableBody = document.querySelector('#employee-details-table tbody');
 const noEmployeeDataMessage = document.getElementById('no-employee-data-message');
 
@@ -252,6 +254,7 @@ function getFilteredData() {
 // --- Generate Report ---
 function generateReport() {
     const selectedCompany = companySelect.value;
+    const selectedMonth = monthSelect.value; // Get the selected month value
 
     if (!selectedCompany) {
         noCompanySelectedMessage.style.display = 'block';
@@ -269,80 +272,124 @@ function generateReport() {
     const outflowColIndex = headers.indexOf('OUT Total');
     const dateColIndex = headers.indexOf('DATE');
 
+    let branchPerformance;
 
-    // Structure: { 'YYYY-MM': { 'BranchA': { inflow: X, outflow: Y, net: Z } } }
-    const monthlyBranchPerformance = {};
+    if (selectedMonth === '') { // "All Months" is selected
+        // Structure: { 'BranchA': { inflow: X, outflow: Y, net: Z } }
+        branchPerformance = {}; 
+        filteredData.forEach(row => {
+            const branchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
+            const inflow = parseNumericalValue(row[inflowColIndex]);
+            const outflow = parseNumericalValue(row[outflowColIndex]);
 
-    filteredData.forEach(row => {
-        const monthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
-        const branchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
-        const inflow = parseNumericalValue(row[inflowColIndex]);
-        const outflow = parseNumericalValue(row[outflowColIndex]);
+            if (!branchPerformance[branchName]) {
+                branchPerformance[branchName] = { inflow: 0, outflow: 0, net: 0 };
+            }
 
-        if (!monthlyBranchPerformance[monthKey]) {
-            monthlyBranchPerformance[monthKey] = {};
-        }
-        if (!monthlyBranchPerformance[monthKey][branchName]) {
-            monthlyBranchPerformance[monthKey][branchName] = { inflow: 0, outflow: 0, net: 0 };
-        }
+            branchPerformance[branchName].inflow += inflow;
+            branchPerformance[branchName].outflow += outflow;
+            branchPerformance[branchName].net += (inflow - outflow);
+        });
+        renderBranchPerformanceTable(branchPerformance, true); // Pass true for 'all months' view
+    } else {
+        // Structure: { 'YYYY-MM': { 'BranchA': { inflow: X, outflow: Y, net: Z } } }
+        branchPerformance = {};
+        filteredData.forEach(row => {
+            const monthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
+            const branchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
+            const inflow = parseNumericalValue(row[inflowColIndex]);
+            const outflow = parseNumericalValue(row[outflowColIndex]);
 
-        monthlyBranchPerformance[monthKey][branchName].inflow += inflow;
-        monthlyBranchPerformance[monthKey][branchName].outflow += outflow;
-        monthlyBranchPerformance[monthKey][branchName].net += (inflow - outflow);
-    });
+            if (!branchPerformance[monthKey]) {
+                branchPerformance[monthKey] = {};
+            }
+            if (!branchPerformance[monthKey][branchName]) {
+                branchPerformance[monthKey][branchName] = { inflow: 0, outflow: 0, net: 0 };
+            }
 
-    renderBranchPerformanceTable(monthlyBranchPerformance);
+            branchPerformance[monthKey][branchName].inflow += inflow;
+            branchPerformance[monthKey][branchName].outflow += outflow;
+            branchPerformance[monthKey][branchName].net += (inflow - outflow);
+        });
+        renderBranchPerformanceTable(branchPerformance, false); // Pass false for 'monthly' view
+    }
 
     // Hide detailed entries if they were open from a previous view
     detailedEntriesContainer.style.display = 'none';
     noDetailedDataMessage.style.display = 'none';
 }
 
-function renderBranchPerformanceTable(monthlyBranchPerformance) {
+function renderBranchPerformanceTable(data, isAllMonthsView) {
     branchPerformanceTableBody.innerHTML = '';
-    const monthKeys = Object.keys(monthlyBranchPerformance).sort();
-
+    
     let totalInflow = 0;
     let totalOutflow = 0;
     let totalNet = 0;
 
-    if (monthKeys.length === 0) {
+    if (Object.keys(data).length === 0) {
         noSummaryDataMessage.style.display = 'block';
         return;
     } else {
         noSummaryDataMessage.style.display = 'none';
     }
 
-    monthKeys.forEach(monthKey => {
-        const monthDate = new Date(monthKey);
-        const monthName = monthDate.toLocaleString('en-US', { year: 'numeric', month: 'long' });
-        const branchesForMonth = Object.keys(monthlyBranchPerformance[monthKey]).sort();
-
-        branchesForMonth.forEach(branchName => {
-            const data = monthlyBranchPerformance[monthKey][branchName];
+    if (isAllMonthsView) {
+        const branchNames = Object.keys(data).sort();
+        branchNames.forEach(branchName => {
+            const branchData = data[branchName];
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${monthName}</td>
-                <td class="branch-name-cell" data-month="${monthKey}" data-branch="${branchName}">${branchName}</td>
-                <td>${formatIndianNumber(data.inflow)}</td>
-                <td>${formatIndianNumber(data.outflow)}</td>
-                <td>${formatIndianNumber(data.net)}</td>
+                <td>All Months</td>
+                <td class="branch-name-cell" data-month="" data-branch="${branchName}">${branchName}</td>
+                <td>${formatIndianNumber(branchData.inflow)}</td>
+                <td>${formatIndianNumber(branchData.outflow)}</td>
+                <td>${formatIndianNumber(branchData.net)}</td>
             `;
             branchPerformanceTableBody.appendChild(tr);
-            
+
             // Add event listener to the branch name cell
             tr.querySelector('.branch-name-cell').addEventListener('click', (event) => {
-                const clickedMonthKey = event.target.dataset.month;
+                const clickedMonthKey = monthSelect.value; // This will be "" if "All Months"
                 const clickedBranchName = event.target.dataset.branch;
                 showEmployeeDetailsModal(clickedMonthKey, clickedBranchName);
             });
 
-
-            totalInflow += data.inflow;
-            totalOutflow += data.outflow;
-            totalNet += data.net;
+            totalInflow += branchData.inflow;
+            totalOutflow += branchData.outflow;
+            totalNet += branchData.net;
         });
-    });
+    } else {
+        const monthKeys = Object.keys(data).sort();
+        monthKeys.forEach(monthKey => {
+            const monthDate = new Date(monthKey);
+            const monthName = monthDate.toLocaleString('en-US', { year: 'numeric', month: 'long' });
+            const branchesForMonth = Object.keys(data[monthKey]).sort();
+
+            branchesForMonth.forEach(branchName => {
+                const branchData = data[monthKey][branchName];
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${monthName}</td>
+                    <td class="branch-name-cell" data-month="${monthKey}" data-branch="${branchName}">${branchName}</td>
+                    <td>${formatIndianNumber(branchData.inflow)}</td>
+                    <td>${formatIndianNumber(branchData.outflow)}</td>
+                    <td>${formatIndianNumber(branchData.net)}</td>
+                `;
+                branchPerformanceTableBody.appendChild(tr);
+                
+                // Add event listener to the branch name cell
+                tr.querySelector('.branch-name-cell').addEventListener('click', (event) => {
+                    const clickedMonthKey = event.target.dataset.month;
+                    const clickedBranchName = event.target.dataset.branch;
+                    showEmployeeDetailsModal(clickedMonthKey, clickedBranchName);
+                });
+
+                totalInflow += branchData.inflow;
+                totalOutflow += branchData.outflow;
+                totalNet += branchData.net;
+            });
+        });
+    }
 
     // Add the Total row
     const totalTr = document.createElement('tr');
@@ -420,14 +467,14 @@ function showEmployeeDetailsModal(monthKey, branchName) {
     const selectedCompany = companySelect.value;
     const dateColIndex = headers.indexOf('DATE');
     const branchColIndex = headers.indexOf('BRANCH');
-    const employeeColIndex = headers.indexOf('STAFF NAME'); // Corrected from 'EMPLOYEE NAME' to 'STAFF NAME'
+    const employeeColIndex = headers.indexOf('STAFF NAME');
     const inflowColIndex = headers.indexOf('INF Total');
     const outflowColIndex = headers.indexOf('OUT Total');
 
-    if (!selectedCompany || !monthKey || !branchName || employeeColIndex === -1) {
+    if (!selectedCompany || !branchName || employeeColIndex === -1) {
         console.error("Missing data to show employee details or 'STAFF NAME' column not found.");
-        // Display a message to the user in the modal or console
-        employeeModalTitle.textContent = `Employee Participation Details for ${branchName} - ${new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' })}`;
+        employeeModalTitle.textContent = `Employee Participation Details for ${branchName}`;
+        employeeDetailsTableHead.innerHTML = '';
         employeeDetailsTableBody.innerHTML = '';
         noEmployeeDataMessage.style.display = 'block';
         noEmployeeDataMessage.textContent = "Error: 'STAFF NAME' column not found in data or other essential data missing.";
@@ -435,49 +482,98 @@ function showEmployeeDetailsModal(monthKey, branchName) {
         return;
     }
 
+    employeeDetailsTableHead.innerHTML = ''; // Clear previous headers
     employeeDetailsTableBody.innerHTML = ''; // Clear previous data
     noEmployeeDataMessage.style.display = 'none';
 
-    employeeModalTitle.textContent = `Employee Participation Details for ${branchName} - ${new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' })}`;
+    let modalTitleMonthPart = monthKey === '' ? 'All Months' : new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' });
+    employeeModalTitle.textContent = `Employee Participation Details for ${branchName} - ${modalTitleMonthPart}`;
+
+    // Filter data relevant to the selected company and branch
+    const relevantData = allData.filter(row => {
+        const rowCompanyName = headers.indexOf('COMPANY NAME') !== -1 ? row[headers.indexOf('COMPANY NAME')] : null;
+        const rowBranchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
+        const rowDate = row[dateColIndex];
+
+        if (rowCompanyName !== selectedCompany || rowBranchName !== branchName) {
+            return false;
+        }
+
+        // Apply month filter if a specific month is selected
+        if (monthKey !== '') {
+            const rowMonthKey = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
+            if (rowMonthKey !== monthKey) return false;
+        }
+        return true;
+    });
 
     const employeePerformance = {};
+    const uniqueMonths = new Set(); // To store all unique months for dynamic headers
 
-    allData.filter(row => {
-        const rowMonthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
-        const rowBranchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
-        const rowCompanyName = headers.indexOf('COMPANY NAME') !== -1 ? row[headers.indexOf('COMPANY NAME')] : null;
-
-        return rowCompanyName === selectedCompany &&
-               rowMonthKey === monthKey &&
-               rowBranchName === branchName;
-    }).forEach(row => {
+    relevantData.forEach(row => {
         const employeeName = employeeColIndex !== -1 && row[employeeColIndex] ? row[employeeColIndex] : 'Unassigned Employee';
         const inflow = parseNumericalValue(row[inflowColIndex]);
         const outflow = parseNumericalValue(row[outflowColIndex]);
+        const net = inflow - outflow;
+        const month = row[dateColIndex];
+        const monthKeyFormatted = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+        const monthDisplay = month.toLocaleString('en-US', { year: 'numeric', month: 'short' }); // e.g., "Apr 2025"
+        uniqueMonths.add(monthKeyFormatted);
 
         if (!employeePerformance[employeeName]) {
-            employeePerformance[employeeName] = { inflow: 0, outflow: 0, net: 0 };
+            employeePerformance[employeeName] = { 
+                monthlyData: {}, 
+                totalInflow: 0, 
+                totalOutflow: 0, 
+                totalNet: 0 
+            };
         }
-        employeePerformance[employeeName].inflow += inflow;
-        employeePerformance[employeeName].outflow += outflow;
-        employeePerformance[employeeName].net += (inflow - outflow);
+
+        if (!employeePerformance[employeeName].monthlyData[monthKeyFormatted]) {
+            employeePerformance[employeeName].monthlyData[monthKeyFormatted] = { inflow: 0, outflow: 0, net: 0 };
+        }
+
+        employeePerformance[employeeName].monthlyData[monthKeyFormatted].inflow += inflow;
+        employeePerformance[employeeName].monthlyData[monthKeyFormatted].outflow += outflow;
+        employeePerformance[employeeName].monthlyData[monthKeyFormatted].net += net;
+
+        employeePerformance[employeeName].totalInflow += inflow;
+        employeePerformance[employeeName].totalOutflow += outflow;
+        employeePerformance[employeeName].totalNet += net;
     });
 
+    const sortedMonths = Array.from(uniqueMonths).sort();
     const employeeNames = Object.keys(employeePerformance).sort();
 
     if (employeeNames.length === 0) {
         noEmployeeDataMessage.style.display = 'block';
-        noEmployeeDataMessage.textContent = "No employee data available for this branch and month.";
+        noEmployeeDataMessage.textContent = "No employee data available for this branch and period.";
+        employeeDetailsTable.style.display = 'none'; // Hide table if no data
     } else {
+        employeeDetailsTable.style.display = 'table'; // Show table
+        // Create table headers dynamically
+        let headerRow = `<th>Employee Name</th>`;
+        sortedMonths.forEach(monthKey => {
+            const monthDate = new Date(monthKey);
+            headerRow += `<th>${monthDate.toLocaleString('en-US', { year: 'numeric', month: 'short' })}</th>`;
+        });
+        headerRow += `<th>Total</th>`;
+        employeeDetailsTableHead.innerHTML = headerRow;
+
+        // Populate table body
         employeeNames.forEach(employeeName => {
-            const data = employeePerformance[employeeName];
+            const employeeData = employeePerformance[employeeName];
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${employeeName}</td>
-                <td>${formatIndianNumber(data.inflow)}</td>
-                <td>${formatIndianNumber(data.outflow)}</td>
-                <td>${formatIndianNumber(data.net)}</td>
-            `;
+            let rowContent = `<td>${employeeName}</td>`;
+
+            sortedMonths.forEach(monthKey => {
+                const monthInfo = employeeData.monthlyData[monthKey];
+                const netValue = monthInfo ? formatIndianNumber(monthInfo.net) : '-'; // Show '-' if no data for month
+                rowContent += `<td>${netValue}</td>`;
+            });
+
+            rowContent += `<td><strong>${formatIndianNumber(employeeData.totalNet)}</strong></td>`;
+            tr.innerHTML = rowContent;
             employeeDetailsTableBody.appendChild(tr);
         });
     }
