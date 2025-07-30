@@ -281,6 +281,11 @@ h1 {
     font-size: 0.95em;
 }
 
+/* New: Styling for resigned employees */
+.resigned-employee {
+    background-color: #FFFF99 !important; /* Light red background for resigned employees, using !important to override other rules */
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .report-container {
