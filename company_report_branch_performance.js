@@ -470,6 +470,7 @@ function showEmployeeDetailsModal(monthKey, branchName) {
     const employeeColIndex = headers.indexOf('STAFF NAME');
     const inflowColIndex = headers.indexOf('INF Total');
     const outflowColIndex = headers.indexOf('OUT Total');
+    const statusColIndex = headers.indexOf('STATUS'); // Get index for STATUS column
 
     if (!selectedCompany || !branchName || employeeColIndex === -1) {
         console.error("Missing data to show employee details or 'STAFF NAME' column not found.");
@@ -517,15 +518,17 @@ function showEmployeeDetailsModal(monthKey, branchName) {
         const net = inflow - outflow;
         const month = row[dateColIndex];
         const monthKeyFormatted = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
-        const monthDisplay = month.toLocaleString('en-US', { year: 'numeric', month: 'short' }); // e.g., "Apr 2025"
+        // const monthDisplay = month.toLocaleString('en-US', { year: 'numeric', month: 'short' }); // e.g., "Apr 2025"
         uniqueMonths.add(monthKeyFormatted);
+        const status = statusColIndex !== -1 && row[statusColIndex] ? String(row[statusColIndex]).toUpperCase() : ''; // Get status
 
         if (!employeePerformance[employeeName]) {
             employeePerformance[employeeName] = { 
                 monthlyData: {}, 
                 totalInflow: 0, 
                 totalOutflow: 0, 
-                totalNet: 0 
+                totalNet: 0,
+                isResigned: false // Initialize isResigned flag
             };
         }
 
@@ -540,6 +543,10 @@ function showEmployeeDetailsModal(monthKey, branchName) {
         employeePerformance[employeeName].totalInflow += inflow;
         employeePerformance[employeeName].totalOutflow += outflow;
         employeePerformance[employeeName].totalNet += net;
+
+        if (status === 'RESIGNED') { // Check if the current row indicates resignation
+            employeePerformance[employeeName].isResigned = true; // Set flag if resigned
+        }
     });
 
     const sortedMonths = Array.from(uniqueMonths).sort();
@@ -564,6 +571,9 @@ function showEmployeeDetailsModal(monthKey, branchName) {
         employeeNames.forEach(employeeName => {
             const employeeData = employeePerformance[employeeName];
             const tr = document.createElement('tr');
+            if (employeeData.isResigned) { // Add class if employee is resigned
+                tr.classList.add('resigned-employee');
+            }
             let rowContent = `<td>${employeeName}</td>`;
 
             sortedMonths.forEach(monthKey => {
