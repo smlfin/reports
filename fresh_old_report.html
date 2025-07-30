@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fresh/Old Customer Report</title>
+    <link rel="stylesheet" href="fresh_old_report.css">
+</head>
+<body>
+    <div class="report-controls">
+        <h1>Fresh/Old Customer Report</h1>
+        <label for="month-select">Month:</label>
+        <select id="month-select"></select>
+
+        <label for="company-select">Company:</label>
+        <select id="company-select"></select>
+
+        <label for="branch-select">Branch:</label>
+        <select id="branch-select"></select>
+
+        <button id="view-entries-btn">View Detailed Entries</button>
+    </div>
+
+    <div id="overall-contribution-section" class="report-section">
+        <h2>Overall Contribution (Fresh vs. Old Clients)</h2>
+        <div class="overall-summary">
+            <p>Fresh Inflow: <span id="fresh-inflow">0</span></p>
+            <p>Old Inflow: <span id="old-inflow">0</span></p>
+            <p>Fresh Net: <span id="fresh-net">0</span></p>
+            <p>Old Net: <span id="old-net">0</span></p>
+            <p>Total Fresh Customers: <span id="total-fresh-customers">0</span></p>
+            <p>Total Old Customers: <span id="total-old-customers">0</span></p>
+            <p>Total Fresh Staff Customers: <span id="total-fresh-staff-customers">0</span></p>
+        </div>
+    </div>
+
+    <div id="monthly-trends-section" class="report-section">
+        <h2>Monthly Trends</h2>
+
+        <h3>Monthly Inflow (Fresh vs. Old)</h3>
+        <table id="monthly-inflow-table" class="report-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Fresh Inflow</th>
+                    <th>Old Inflow</th>
+                    <th>Total Inflow</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+        <h3>Monthly Net (Fresh vs. Old)</h3>
+        <table id="monthly-net-table" class="report-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Fresh Net</th>
+                    <th>Old Net</th>
+                    <th>Total Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+        <h3>Monthly Fresh Customer Count Trend</h3>
+        <table id="monthly-fresh-customer-count-table" class="report-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Fresh Customers</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+        <h3>Monthly Fresh Staff Customer Count Trend</h3>
+        <table id="monthly-fresh-staff-customer-count-table" class="report-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Fresh Staff Customers</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+    </div>
+
+    <div id="company-contribution-section" class="report-section">
+        <h2>Company-wise Contribution by Customer Type</h2>
+        <table id="company-fresh-old-table" class="report-table">
+            <thead>
+                <tr>
+                    <th>Company Name</th>
+                    <th>Fresh Inflow</th>
+                    <th>Fresh Net</th>
+                    <th>Old Inflow</th>
+                    <th>Old Net</th>
+                    <th>Total Inflow</th>
+                    <th>Total Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <div id="staff-performance-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-button" id="close-staff-modal">&times;</span>
+            <div id="staff-performance-drilldown-container" class="report-section-modal">
+                <h2>Staff Performance: Fresh Customers</h2>
+                <table id="staff-fresh-customer-table" class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Staff Name</th>
+                            <th>Fresh Customers Brought (Count)</th>
+                            <th>Total Inflow from Fresh Customers</th>
+                            <th>Average Inflow per Fresh Customer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="customer-details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-button" id="close-customer-modal">&times;</span>
+            <div id="customer-details-drilldown-container" class="report-section-modal">
+                <h2 id="customer-details-staff-name">Customer Details for Staff: </h2>
+                <table id="customer-details-table" class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Customer Name</th>
+                            <th>Total Inflow</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailed-entries-container" class="report-section" style="display:none;">
+        <h2>Detailed Entries</h2>
+        <table id="detailed-table" class="report-table">
+            <thead>
+                <tr>
+                    </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <script src="fresh_old_report.js"></script>
+</body>
+</html>
