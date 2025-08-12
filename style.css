@@ -1,0 +1,177 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0; /* Reset default body margin */
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+h1 {
+    color: #0056b3;
+    text-align: center;
+    margin-top: 20px; /* Add some space below the nav */
+}
+
+/* Navigation styling */
+nav {
+    background-color: #333;
+    padding: 10px 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.main-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex; /* Makes main menu horizontal */
+    justify-content: center; /* Centers the menu items */
+}
+
+.main-menu > li {
+    position: relative; /* For sub-menu positioning */
+    margin: 0 15px; /* Spacing between main menu items */
+}
+
+.main-menu a {
+    color: white;
+    text-decoration: none;
+    padding: 10px 15px;
+    display: block; /* Make the whole area clickable */
+    white-space: nowrap; /* Prevent menu items from wrapping */
+    transition: background-color 0.3s ease; /* Smooth hover effect */
+}
+
+.main-menu a:hover {
+    background-color: #555;
+    border-radius: 4px;
+}
+
+/* Submenu styling */
+.submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    position: absolute; /* Position relative to the parent li */
+    background-color: #444;
+    min-width: 220px; /* Ensure enough width for sub-menu text */
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    z-index: 100; /* Ensure submenu appears above other content */
+    display: none; /* Hide submenus by default */
+    top: 100%; /* Position directly below the parent menu item */
+    left: 0; /* Align left with parent */
+    border-radius: 0 0 4px 4px;
+    overflow: hidden; /* For rounded corners */
+}
+
+.submenu li {
+    border-bottom: 1px solid #555; /* Separator between sub-menu items */
+}
+
+.submenu li:last-child {
+    border-bottom: none; /* No border for the last item */
+}
+
+.submenu a {
+    padding: 12px 20px; /* More padding for sub-menu items */
+    color: white;
+}
+
+.submenu a:hover {
+    background-color: #007bff; /* Highlight on hover */
+}
+
+/* Show submenu on hover of the parent li */
+.has-submenu:hover > .submenu {
+    display: block;
+}
+
+/* Table container and table styling (from previous steps, included for completeness) */
+#table-container {
+    margin: 20px; /* Add margin around the table container */
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #007bff;
+    color: white;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+tr:hover {
+    background-color: #ddd;
+}
+/* style.css */
+
+/* ... (your existing CSS above this point) ... */
+
+/* Modal Specific Styles */
+.modal-overlay {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+    justify-content: center; /* Center content horizontally */
+    align-items: center; /* Center content vertically */
+    padding: 20px; /* Padding around the content for smaller screens */
+    box-sizing: border-box; /* Include padding in width/height */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Auto margin for centering in old browsers */
+    padding: 25px;
+    border: 1px solid #888;
+    width: 80%; /* Could be a fixed width or max-width */
+    max-width: 900px; /* Max width for larger screens */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+    position: relative; /* Needed for positioning close button */
+    overflow-y: auto; /* Enable scroll for modal content if it's too long */
+    max-height: 90vh; /* Max height to prevent content from going off screen */
+}
+
+.report-section-modal {
+    /* Styles for the report section content inside the modal */
+    padding: 0; /* Remove default padding as modal-content has it */
+    margin: 0; /* Remove default margin */
+    background-color: transparent; /* Remove background, use modal-content's */
+    box-shadow: none; /* Remove shadow, use modal-content's */
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1; /* Adjust line-height to center 'x' vertically */
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+}

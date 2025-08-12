@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Target vs. Achievement</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="company_target_achievement.css">
+</head>
+<body>
+    <nav>
+        <ul class="main-menu">
+            <li><a href="index.html">Home</a></li>
+            <li class="has-submenu">
+                <a href="#">Company Reports</a>
+                <ul class="submenu">
+                    <li><a href="company_inflow_outflow.html">Company-wise Inflow/Outflow Report</a></li>
+                    <li><a href="company_report_branch_performance.html">Branch Performance Report</a></li>
+                    <li><a href="company_target_achievement.html">Company Target vs. Achievement</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Staff Reports</a>
+                <ul class="submenu">
+                    <li><a href="staff_report.html">Individual Staff Drilldown</a></li>
+                    <li><a href="resigned_staff_report.html">Resigned Staff Analysis Report</a></li>
+                    <li><a href="employee_participation_report.html">Employee Participation Report</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Other Reports</a>
+                <ul class="submenu">
+                    <li><a href="fresh_old_report.html">Fresh/Old Customer Report</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="report-container">
+        <h1>Company Target vs. Achievement Report</h1>
+        
+        <div class="report-controls">
+            <div class="filter-group">
+                <label for="month-select">Select Month:</label>
+                <select id="month-select"></select>
+            </div>
+            <button id="view-detailed-entries-btn">View Detailed Entries</button>
+        </div>
+
+        <div id="overall-summary-section" class="report-section">
+            <h2>Overall Summary</h2>
+            <div class="overall-summary-card">
+                <p>Overall Target: <span id="overall-target">0</span></p>
+                <p>Overall Achievement: <span id="overall-achievement">0</span></p>
+                <p>Overall Difference: <span id="overall-difference">0</span></p>
+            </div>
+        </div>
+
+        <div id="company-target-achievement-section" class="report-section">
+            <h2>Company-wise Targets and Achievements</h2>
+            <div class="table-container">
+                <table id="company-target-table" class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Target</th>
+                            <th>Achievement</th>
+                            <th>% Achievement</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="company-target-table-body">
+                    </tbody>
+                </table>
+                <p id="no-data-message" class="no-data-message" style="display: none;">No data available for the selected month.</p>
+            </div>
+        </div>
+
+        <div id="detailed-entries-container" class="report-section" style="display:none;">
+            <h2>Detailed Entries</h2>
+            <table id="detailed-table" class="report-table">
+                <thead>
+                    <tr></tr>
+                </thead>
+                <tbody>
+                    <tr></tr>
+                </tbody>
+            </table>
+            <p id="no-detailed-data-message" class="no-data-message" style="display: none;">No detailed entries found for the selected criteria.</p>
+        </div>
+    </div>
+
+    <script src="company_target_achievement.js"></script>
+</body>
+</html>
