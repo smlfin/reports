@@ -7,6 +7,7 @@ const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1OOdGnJhw1k6U1
 let allData = []; // Stores all parsed CSV rows
 let headers = []; // Stores CSV headers
 let allCompanyNames = []; // Stores all unique company names for filter search
+let isModalOpen = false; // To track modal state
 
 // --- Fixed Date Range for Data Validity (April 2025 - Current Month) ---
 const dataStartDate = new Date('2025-04-01T00:00:00'); // April 1, 2025, 00:00:00 local time
@@ -18,24 +19,21 @@ const companySearchInput = document.getElementById('company-search');
 const companySelect = document.getElementById('company-select');
 const monthSelect = document.getElementById('month-select');
 const viewDetailedBtn = document.getElementById('view-detailed-btn');
-
+const detailedEntriesContainer = document.getElementById('detailed-entries-container');
+const detailedTableHead = document.querySelector('#detailed-table thead tr');
+const detailedTableBody = document.querySelector('#detailed-table tbody');
+const noDetailedDataMessage = document.getElementById('no-detailed-data-message');
 const noCompanySelectedMessage = document.getElementById('no-company-selected-message');
 const branchPerformanceSummarySection = document.getElementById('branch-performance-summary-section');
 const branchPerformanceTableBody = document.querySelector('#branch-performance-table tbody');
 const noSummaryDataMessage = document.getElementById('no-summary-data-message');
 
-const detailedEntriesContainer = document.getElementById('detailed-entries-container');
-const detailedTableHead = document.querySelector('#detailed-table thead tr');
-const detailedTableBody = document.querySelector('#detailed-table tbody');
-const noDetailedDataMessage = document.getElementById('no-detailed-data-message');
-
 // New DOM Elements for Employee Details Modal
 const employeeDetailsModal = document.getElementById('employee-details-modal');
 const closeEmployeeModalBtn = document.getElementById('close-employee-modal');
 const employeeModalTitle = document.getElementById('employee-modal-title');
-const employeeDetailsTable = document.getElementById('employee-details-table'); // Get the entire table
-const employeeDetailsTableHead = document.querySelector('#employee-details-table thead tr');
 const employeeDetailsTableBody = document.querySelector('#employee-details-table tbody');
+const employeeDetailsTableHead = document.querySelector('#employee-details-table thead tr');
 const noEmployeeDataMessage = document.getElementById('no-employee-data-message');
 
 
@@ -165,7 +163,43 @@ async function init() {
         }).filter(row => row !== null); // Remove null entries (invalid/out of range dates)
 
         populateFilters(); // Populate filters first
-        // No initial report generation, wait for company selection
+        
+        // Add event listeners
+        companySelect.addEventListener('change', () => {
+            generateReport();
+        });
+        monthSelect.addEventListener('change', generateReport);
+        companySearchInput.addEventListener('input', () => {
+            const searchText = companySearchInput.value.toLowerCase();
+            const filteredCompanies = allCompanyNames.filter(company => company.toLowerCase().includes(searchText));
+            populateCompanySelect(filteredCompanies);
+            generateReport(); // Re-generate report after company list is filtered and a new one is selected
+        });
+
+        // Add event listener to the table body for showing employee details
+        branchPerformanceTableBody.addEventListener('click', (event) => {
+            const target = event.target.closest('td.branch-name-cell');
+            if (target) {
+                const branchName = target.dataset.branch;
+                const month = target.dataset.month;
+                if (branchName) {
+                    showEmployeeDetailsModal(branchName, month);
+                }
+            }
+        });
+        
+        closeEmployeeModalBtn.addEventListener('click', () => {
+            employeeDetailsModal.style.display = 'none';
+            isModalOpen = false;
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === employeeDetailsModal) {
+                employeeDetailsModal.style.display = 'none';
+                isModalOpen = false;
+            }
+        });
+
     } catch (error) {
         console.error('Error initializing report:', error);
         document.querySelector('.report-container').innerHTML = '<p>Error loading data. Please try again later.</p>';
@@ -175,7 +209,6 @@ async function init() {
 // --- Filter Population ---
 function populateFilters() {
     const companies = new Set();
-    
     const companyColIndex = headers.indexOf('COMPANY NAME');
 
     allData.forEach(row => {
@@ -254,12 +287,11 @@ function getFilteredData() {
 // --- Generate Report ---
 function generateReport() {
     const selectedCompany = companySelect.value;
-    const selectedMonth = monthSelect.value; // Get the selected month value
+    const selectedMonth = monthSelect.value;
 
     if (!selectedCompany) {
         noCompanySelectedMessage.style.display = 'block';
         branchPerformanceSummarySection.style.display = 'none';
-        detailedEntriesContainer.style.display = 'none'; // Hide detailed entries if company is unselected
         return;
     } else {
         noCompanySelectedMessage.style.display = 'none';
@@ -270,351 +302,212 @@ function generateReport() {
     const branchColIndex = headers.indexOf('BRANCH');
     const inflowColIndex = headers.indexOf('INF Total');
     const outflowColIndex = headers.indexOf('OUT Total');
-    const dateColIndex = headers.indexOf('DATE');
 
-    let branchPerformance;
+    // Aggregate data by branch, regardless of whether a month is selected.
+    // The getFilteredData() function handles the month-specific filtering.
+    const branchPerformance = {};
+    filteredData.forEach(row => {
+        const branchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
+        const inflow = parseNumericalValue(row[inflowColIndex]);
+        const outflow = parseNumericalValue(row[outflowColIndex]);
 
-    if (selectedMonth === '') { // "All Months" is selected
-        // Structure: { 'BranchA': { inflow: X, outflow: Y, net: Z } }
-        branchPerformance = {}; 
-        filteredData.forEach(row => {
-            const branchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
-            const inflow = parseNumericalValue(row[inflowColIndex]);
-            const outflow = parseNumericalValue(row[outflowColIndex]);
+        if (!branchPerformance[branchName]) {
+            branchPerformance[branchName] = { inflow: 0, outflow: 0, net: 0 };
+        }
+        branchPerformance[branchName].inflow += inflow;
+        branchPerformance[branchName].outflow += outflow;
+        branchPerformance[branchName].net += (inflow - outflow);
+    });
 
-            if (!branchPerformance[branchName]) {
-                branchPerformance[branchName] = { inflow: 0, outflow: 0, net: 0 };
-            }
-
-            branchPerformance[branchName].inflow += inflow;
-            branchPerformance[branchName].outflow += outflow;
-            branchPerformance[branchName].net += (inflow - outflow);
-        });
-        renderBranchPerformanceTable(branchPerformance, true); // Pass true for 'all months' view
-    } else {
-        // Structure: { 'YYYY-MM': { 'BranchA': { inflow: X, outflow: Y, net: Z } } }
-        branchPerformance = {};
-        filteredData.forEach(row => {
-            const monthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
-            const branchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
-            const inflow = parseNumericalValue(row[inflowColIndex]);
-            const outflow = parseNumericalValue(row[outflowColIndex]);
-
-            if (!branchPerformance[monthKey]) {
-                branchPerformance[monthKey] = {};
-            }
-            if (!branchPerformance[monthKey][branchName]) {
-                branchPerformance[monthKey][branchName] = { inflow: 0, outflow: 0, net: 0 };
-            }
-
-            branchPerformance[monthKey][branchName].inflow += inflow;
-            branchPerformance[monthKey][branchName].outflow += outflow;
-            branchPerformance[monthKey][branchName].net += (inflow - outflow);
-        });
-        renderBranchPerformanceTable(branchPerformance, false); // Pass false for 'monthly' view
-    }
+    renderBranchPerformanceTable(branchPerformance, selectedMonth);
 
     // Hide detailed entries if they were open from a previous view
     detailedEntriesContainer.style.display = 'none';
     noDetailedDataMessage.style.display = 'none';
 }
 
-function renderBranchPerformanceTable(data, isAllMonthsView) {
+
+function renderBranchPerformanceTable(data, selectedMonth) {
     branchPerformanceTableBody.innerHTML = '';
     
-    let totalInflow = 0;
-    let totalOutflow = 0;
-    let totalNet = 0;
-
     if (Object.keys(data).length === 0) {
         noSummaryDataMessage.style.display = 'block';
         return;
     } else {
         noSummaryDataMessage.style.display = 'none';
     }
+    
+    let totalInflow = 0;
+    let totalOutflow = 0;
+    let totalNet = 0;
 
-    if (isAllMonthsView) {
-        const branchNames = Object.keys(data).sort();
-        branchNames.forEach(branchName => {
-            const branchData = data[branchName];
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>All Months</td>
-                <td class="branch-name-cell" data-month="" data-branch="${branchName}">${branchName}</td>
-                <td>${formatIndianNumber(branchData.inflow)}</td>
-                <td>${formatIndianNumber(branchData.outflow)}</td>
-                <td>${formatIndianNumber(branchData.net)}</td>
-            `;
-            branchPerformanceTableBody.appendChild(tr);
+    const branchNames = Object.keys(data).sort();
+    
+    branchNames.forEach(branchName => {
+        const branchData = data[branchName];
+        const tr = document.createElement('tr');
+        const monthDisplay = selectedMonth ? selectedMonth : 'All Months';
 
-            // Add event listener to the branch name cell
-            tr.querySelector('.branch-name-cell').addEventListener('click', (event) => {
-                const clickedMonthKey = monthSelect.value; // This will be "" if "All Months"
-                const clickedBranchName = event.target.dataset.branch;
-                showEmployeeDetailsModal(clickedMonthKey, clickedBranchName);
-            });
+        tr.innerHTML = `
+            <td>${monthDisplay}</td>
+            <td class="branch-name-cell" data-month="${selectedMonth}" data-branch="${branchName}">${branchName}</td>
+            <td>${formatIndianNumber(branchData.inflow)}</td>
+            <td>${formatIndianNumber(branchData.outflow)}</td>
+            <td class="${branchData.net >= 0 ? 'positive' : 'negative'}">${formatIndianNumber(branchData.net)}</td>
+        `;
+        branchPerformanceTableBody.appendChild(tr);
 
-            totalInflow += branchData.inflow;
-            totalOutflow += branchData.outflow;
-            totalNet += branchData.net;
-        });
-    } else {
-        const monthKeys = Object.keys(data).sort();
-        monthKeys.forEach(monthKey => {
-            const monthDate = new Date(monthKey);
-            const monthName = monthDate.toLocaleString('en-US', { year: 'numeric', month: 'long' });
-            const branchesForMonth = Object.keys(data[monthKey]).sort();
+        totalInflow += branchData.inflow;
+        totalOutflow += branchData.outflow;
+        totalNet += branchData.net;
+    });
 
-            branchesForMonth.forEach(branchName => {
-                const branchData = data[monthKey][branchName];
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${monthName}</td>
-                    <td class="branch-name-cell" data-month="${monthKey}" data-branch="${branchName}">${branchName}</td>
-                    <td>${formatIndianNumber(branchData.inflow)}</td>
-                    <td>${formatIndianNumber(branchData.outflow)}</td>
-                    <td>${formatIndianNumber(branchData.net)}</td>
-                `;
-                branchPerformanceTableBody.appendChild(tr);
-                
-                // Add event listener to the branch name cell
-                tr.querySelector('.branch-name-cell').addEventListener('click', (event) => {
-                    const clickedMonthKey = event.target.dataset.month;
-                    const clickedBranchName = event.target.dataset.branch;
-                    showEmployeeDetailsModal(clickedMonthKey, clickedBranchName);
-                });
-
-                totalInflow += branchData.inflow;
-                totalOutflow += branchData.outflow;
-                totalNet += branchData.net;
-            });
-        });
-    }
-
-    // Add the Total row
-    const totalTr = document.createElement('tr');
-    totalTr.classList.add('total-row'); // Add a class for potential styling
-    totalTr.innerHTML = `
-        <td colspan="2"><strong>Total</strong></td>
-        <td><strong>${formatIndianNumber(totalInflow)}</strong></td>
-        <td><strong>${formatIndianNumber(totalOutflow)}</strong></td>
-        <td><strong>${formatIndianNumber(totalNet)}</strong></td>
+    // Render totals row
+    const totalsRow = document.createElement('tr');
+    totalsRow.classList.add('totals-row');
+    totalsRow.innerHTML = `
+        <td></td>
+        <td>Total</td>
+        <td>${formatIndianNumber(totalInflow)}</td>
+        <td>${formatIndianNumber(totalOutflow)}</td>
+        <td class="${totalNet >= 0 ? 'positive' : 'negative'}">${formatIndianNumber(totalNet)}</td>
     `;
-    branchPerformanceTableBody.appendChild(totalTr);
+    branchPerformanceTableBody.appendChild(totalsRow);
 }
 
-// --- Detailed Entries ---
-function viewDetailedEntries() {
-    const filteredData = getFilteredData();
-    detailedTableHead.innerHTML = ''; // Clear previous headers
-    detailedTableBody.innerHTML = ''; // Clear previous data
+// --- Detailed Entries Section ---
+function renderDetailedEntries(branchName, month) {
+    const detailedData = getFilteredData().filter(row => {
+        const branchColIndex = headers.indexOf('BRANCH');
+        const rowBranchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
+        return rowBranchName === branchName;
+    });
 
-    if (filteredData.length === 0) {
-        detailedEntriesContainer.style.display = 'block';
+    if (detailedData.length === 0) {
         noDetailedDataMessage.style.display = 'block';
+        detailedTableHead.style.display = 'none';
+        detailedTableBody.innerHTML = '';
         return;
     } else {
         noDetailedDataMessage.style.display = 'none';
+        detailedTableHead.style.display = 'table-row';
     }
+    
+    detailedTableBody.innerHTML = '';
+    const relevantHeaders = ['DATE', 'COMPANY NAME', 'BRANCH', 'STAFF NAME', 'INF Total', 'OUT Total', 'STATUS'];
+    const headerIndices = relevantHeaders.map(header => headers.indexOf(header));
+    
+    // Render detailed table headers
+    detailedTableHead.innerHTML = relevantHeaders.map(header => `<th>${header}</th>`).join('');
 
-    // Create table header (all original headers)
-    headers.forEach(headerText => {
-        const th = document.createElement('th');
-        th.textContent = headerText;
-        detailedTableHead.appendChild(th);
-    });
-
-    // Create table body
-    filteredData.forEach(rowData => {
+    // Render detailed table rows
+    const statusColIndex = headers.indexOf('STATUS'); // Get status index here
+    detailedData.forEach(row => {
         const tr = document.createElement('tr');
-        headers.forEach((header, index) => {
-            const td = document.createElement('td');
-            let content = rowData[index] !== null && rowData[index] !== undefined ? String(rowData[index]) : '';
+        if (statusColIndex !== -1 && row[statusColIndex] === 'Resigned') {
+            tr.classList.add('resigned-staff');
+        }
 
-            // Format date columns
-            if (header === 'DATE') {
-                const dateObj = rowData[index];
-                if (dateObj instanceof Date && !isNaN(dateObj)) {
-                    content = dateObj.toLocaleDateString('en-GB'); // dd/mm/yyyy
-                }
-            }
-            // Format numerical columns
-            else {
-                const numericalHeaders = [
-                    'SML NCD INF', 'SML SD INF', ' SML GB INF ', 'SML BDSL', 'VFL NCD INF', 'VFL SD INF', 'VFL GB INF',
-                    'SNL FD INF', 'LLP INF', 'INF Total', 'SNL FD INF.1', 'VFL NCD OUT', 'VFL BD OUT', 'SML PURCHASE ',
-                    ' SML NCD OUT ', 'SML SD OUT', ' SML GB OUT ', 'LLP OUT', 'OUT Total', 'Net'
-                ];
-                if (numericalHeaders.includes(header.trim())) { // Trim header for accurate comparison
-                    const numValue = parseFloat(content.replace(/,/g, ''));
-                    if (!isNaN(numValue)) {
-                        content = formatIndianNumber(numValue);
-                    }
-                }
-            }
-            td.textContent = content;
-            tr.appendChild(td);
-        });
+        const cells = headerIndices.map(index => {
+            const value = row[index];
+            const cellValue = (headers[index] === 'DATE' && value instanceof Date) ? value.toLocaleDateString() : value;
+            return `<td>${cellValue !== null ? cellValue : ''}</td>`;
+        }).join('');
+        tr.innerHTML = cells;
         detailedTableBody.appendChild(tr);
     });
-
-    detailedEntriesContainer.style.display = 'block';
-    detailedEntriesContainer.scrollIntoView({ behavior: 'smooth' });
 }
 
-// --- Show Employee Details Modal ---
-function showEmployeeDetailsModal(monthKey, branchName) {
-    const selectedCompany = companySelect.value;
-    const dateColIndex = headers.indexOf('DATE');
-    const branchColIndex = headers.indexOf('BRANCH');
+// --- Employee Details Modal Functions (FIXED) ---
+function showEmployeeDetailsModal(branchName, selectedMonth) {
+    // Show the modal
+    employeeDetailsModal.style.display = 'block';
+    isModalOpen = true;
+
+    // Use the already filtered data from the main report logic
+    const branchFilteredData = getFilteredData().filter(row => {
+        const branchColIndex = headers.indexOf('BRANCH');
+        const rowBranchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
+        return rowBranchName === branchName;
+    });
+
     const employeeColIndex = headers.indexOf('STAFF NAME');
     const inflowColIndex = headers.indexOf('INF Total');
     const outflowColIndex = headers.indexOf('OUT Total');
-    const statusColIndex = headers.indexOf('STATUS'); // Get index for STATUS column
+    const dateColIndex = headers.indexOf('DATE');
 
-    if (!selectedCompany || !branchName || employeeColIndex === -1) {
-        console.error("Missing data to show employee details or 'STAFF NAME' column not found.");
-        employeeModalTitle.textContent = `Employee Participation Details for ${branchName}`;
-        employeeDetailsTableHead.innerHTML = '';
-        employeeDetailsTableBody.innerHTML = '';
+    if (branchFilteredData.length === 0 || employeeColIndex === -1 || inflowColIndex === -1 || outflowColIndex === -1) {
         noEmployeeDataMessage.style.display = 'block';
-        noEmployeeDataMessage.textContent = "Error: 'STAFF NAME' column not found in data or other essential data missing.";
-        employeeDetailsModal.style.display = 'flex';
+        employeeDetailsTableBody.innerHTML = '';
+        employeeModalTitle.textContent = `Employees in ${branchName} - No Data`;
         return;
+    } else {
+        noEmployeeDataMessage.style.display = 'none';
+        employeeModalTitle.textContent = `Employees in ${branchName} (${selectedMonth ? selectedMonth : 'All Months'})`;
     }
 
-    employeeDetailsTableHead.innerHTML = ''; // Clear previous headers
-    employeeDetailsTableBody.innerHTML = ''; // Clear previous data
-    noEmployeeDataMessage.style.display = 'none';
-
-    let modalTitleMonthPart = monthKey === '' ? 'All Months' : new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' });
-    employeeModalTitle.textContent = `Employee Participation Details for ${branchName} - ${modalTitleMonthPart}`;
-
-    // Filter data relevant to the selected company and branch
-    const relevantData = allData.filter(row => {
-        const rowCompanyName = headers.indexOf('COMPANY NAME') !== -1 ? row[headers.indexOf('COMPANY NAME')] : null;
-        const rowBranchName = branchColIndex !== -1 && row[branchColIndex] ? row[branchColIndex] : 'Unassigned Branch';
-        const rowDate = row[dateColIndex];
-
-        if (rowCompanyName !== selectedCompany || rowBranchName !== branchName) {
-            return false;
-        }
-
-        // Apply month filter if a specific month is selected
-        if (monthKey !== '') {
-            const rowMonthKey = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
-            if (rowMonthKey !== monthKey) return false;
-        }
-        return true;
-    });
-
-    const employeePerformance = {};
-    const uniqueMonths = new Set(); // To store all unique months for dynamic headers
-
-    relevantData.forEach(row => {
-        const employeeName = employeeColIndex !== -1 && row[employeeColIndex] ? row[employeeColIndex] : 'Unassigned Employee';
+    // Aggregate data by employee and month
+    const employeeData = {};
+    const uniqueMonths = new Set();
+    
+    branchFilteredData.forEach(row => {
+        const employeeName = row[employeeColIndex];
+        const monthKey = row[dateColIndex].toLocaleString('en-US', { year: 'numeric', month: 'short' });
+        uniqueMonths.add(monthKey);
+        
         const inflow = parseNumericalValue(row[inflowColIndex]);
         const outflow = parseNumericalValue(row[outflowColIndex]);
         const net = inflow - outflow;
-        const month = row[dateColIndex];
-        const monthKeyFormatted = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
-        uniqueMonths.add(monthKeyFormatted);
-        const status = statusColIndex !== -1 && row[statusColIndex] ? String(row[statusColIndex]).toUpperCase() : ''; // Get status
 
-        if (!employeePerformance[employeeName]) {
-            employeePerformance[employeeName] = { 
-                monthlyData: {}, 
-                totalInflow: 0, 
-                totalOutflow: 0, 
-                totalNet: 0,
-                isResigned: false // Initialize isResigned flag
-            };
+        if (!employeeData[employeeName]) {
+            employeeData[employeeName] = { totalNet: 0, months: {} };
         }
 
-        if (!employeePerformance[employeeName].monthlyData[monthKeyFormatted]) {
-            employeePerformance[employeeName].monthlyData[monthKeyFormatted] = { inflow: 0, outflow: 0, net: 0 };
+        if (!employeeData[employeeName].months[monthKey]) {
+            employeeData[employeeName].months[monthKey] = { net: 0 };
         }
-
-        employeePerformance[employeeName].monthlyData[monthKeyFormatted].inflow += inflow;
-        employeePerformance[employeeName].monthlyData[monthKeyFormatted].outflow += outflow;
-        employeePerformance[employeeName].monthlyData[monthKeyFormatted].net += net;
-
-        employeePerformance[employeeName].totalInflow += inflow;
-        employeePerformance[employeeName].totalOutflow += outflow;
-        employeePerformance[employeeName].totalNet += net;
-
-        if (status === 'RESIGNED') { // Check if the current row indicates resignation
-            employeePerformance[employeeName].isResigned = true; // Set flag if resigned
-        }
+        
+        employeeData[employeeName].months[monthKey].net += net;
+        employeeData[employeeName].totalNet += net;
     });
 
-    const sortedMonths = Array.from(uniqueMonths).sort();
-    const employeeNames = Object.keys(employeePerformance).sort();
+    // Sort months to ensure columns are in chronological order
+    const sortedMonths = Array.from(uniqueMonths).sort((a, b) => new Date(a) - new Date(b));
 
-    if (employeeNames.length === 0) {
-        noEmployeeDataMessage.style.display = 'block';
-        noEmployeeDataMessage.textContent = "No employee data available for this branch and period.";
-        employeeDetailsTable.style.display = 'none'; // Hide table if no data
-    } else {
-        employeeDetailsTable.style.display = 'table'; // Show table
-        // Create table headers dynamically
-        let headerRow = `<th>Employee Name</th>`;
-        sortedMonths.forEach(monthKey => {
-            const monthDate = new Date(monthKey);
-            headerRow += `<th>${monthDate.toLocaleString('en-US', { year: 'numeric', month: 'short' })}</th>`;
+    // Render the table headers dynamically
+    let headerContent = '<th>Employee Name</th>';
+    sortedMonths.forEach(month => {
+        headerContent += `<th>${month} Net</th>`;
+    });
+    headerContent += '<th>Total Net</th>';
+    employeeDetailsTableHead.innerHTML = headerContent;
+
+    // Render the table body
+    employeeDetailsTableBody.innerHTML = '';
+    const employeeNames = Object.keys(employeeData).sort();
+    
+    employeeNames.forEach(name => {
+        const employeeInfo = employeeData[name];
+        const tr = document.createElement('tr');
+        
+        let rowContent = `<td>${name}</td>`;
+        
+        sortedMonths.forEach(month => {
+            const monthInfo = employeeInfo.months[month];
+            const netValue = monthInfo ? formatIndianNumber(monthInfo.net) : '-'; // Show '-' if no data for month
+            const netClass = monthInfo && monthInfo.net >= 0 ? 'positive' : 'negative';
+            rowContent += `<td class="${netClass}">${netValue}</td>`;
         });
-        headerRow += `<th>Total</th>`;
-        employeeDetailsTableHead.innerHTML = headerRow;
 
-        // Populate table body
-        employeeNames.forEach(employeeName => {
-            const employeeData = employeePerformance[employeeName];
-            const tr = document.createElement('tr');
-            if (employeeData.isResigned) { // Add class if employee is resigned
-                tr.classList.add('resigned-employee');
-            }
-            let rowContent = `<td>${employeeName}</td>`;
+        const totalNetClass = employeeInfo.totalNet >= 0 ? 'positive' : 'negative';
+        rowContent += `<td class="${totalNetClass}"><strong>${formatIndianNumber(employeeInfo.totalNet)}</strong></td>`;
+        
+        tr.innerHTML = rowContent;
+        employeeDetailsTableBody.appendChild(tr);
+    });
 
-            sortedMonths.forEach(monthKey => {
-                const monthInfo = employeeData.monthlyData[monthKey];
-                const netValue = monthInfo ? formatIndianNumber(monthInfo.net) : '-'; // Show '-' if no data for month
-                rowContent += `<td>${netValue}</td>`;
-            });
-
-            rowContent += `<td><strong>${formatIndianNumber(employeeData.totalNet)}</strong></td>`;
-            tr.innerHTML = rowContent;
-            employeeDetailsTableBody.appendChild(tr);
-        });
-    }
-
-    employeeDetailsModal.style.display = 'flex'; // Use flex to center the modal
+    employeeDetailsModal.style.display = 'block';
 }
-
-
-// --- Event Listeners ---
-companySelect.addEventListener('change', generateReport);
-monthSelect.addEventListener('change', generateReport);
-companySearchInput.addEventListener('input', () => {
-    const searchText = companySearchInput.value.toLowerCase();
-    const filteredCompanies = allCompanyNames.filter(company => 
-        company.toLowerCase().includes(searchText)
-    );
-    populateCompanySelect(filteredCompanies);
-    // Do not generate report here, wait for selection from dropdown
-});
-viewDetailedBtn.addEventListener('click', viewDetailedEntries);
-
-// Event listeners for the new modal
-closeEmployeeModalBtn.addEventListener('click', () => {
-    employeeDetailsModal.style.display = 'none';
-});
-
-// Close modal when clicking outside of it
-window.addEventListener('click', (event) => {
-    if (event.target === employeeDetailsModal) {
-        employeeDetailsModal.style.display = 'none';
-    }
-});
 
 
 // --- Initialize the report when the page loads ---
