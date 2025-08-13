@@ -354,3 +354,15 @@ h1 {
         font-size: 1.4em;
     }
 }
+
+/* New style for resigned staff */
+.resigned-staff {
+    background-color: #ffcccc !important; /* Light red background to indicate a resigned staff member */
+    color: #a00000 !important; /* Darker red text for readability */
+    font-weight: bold;
+}
+
+/* Optional: You might want to make sure the text color is not overridden */
+.resigned-staff td {
+    color: #a00000 !important;
+}
