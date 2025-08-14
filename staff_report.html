@@ -5,23 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Performance Report</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* Add some basic styling for the new search input */
-        .report-controls label, .report-controls select, .report-controls input, .report-controls button {
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-        .report-controls {
-            display: flex;
-            flex-wrap: wrap; /* Allow items to wrap on smaller screens */
-            align-items: center;
-            padding: 15px;
-            background-color: #e9e9e9;
-            border-radius: 8px;
-            margin: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-    </style>
+    <link rel="stylesheet" href="new_style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <nav>
@@ -32,95 +17,143 @@
                 <ul class="submenu">
                     <li><a href="company_report_branch_performance.html">Branch Performance</a></li>
                     <li><a href="#">Company-wise Inflow/Outflow</a></li>
-                   
                 </ul>
             </li>
             <li class="has-submenu">
                 <a href="#">Staff Reports</a>
                 <ul class="submenu">
-                    
                     <li><a href="staff_report.html">Individual Staff Drilldown</a></li>
                     <li><a href="#">Resigned Staff Analysis</a></li>
-<li><a href="employee_participation_report.html">Employee Participation Report</a></li>
+                    <li><a href="employee_participation_report.html">Employee Participation Report</a></li>
                 </ul>
             </li>
             <li class="has-submenu">
                 <a href="#">Other Reports</a>
                 <ul class="submenu">
-                    
-                    <li><a href="#">Fresh vs Old Clients</a></li>
-                   
+                    <li><a href="fresh_old_report.html">Fresh vs Old Clients</a></li>
                 </ul>
             </li>
         </ul>
     </nav>
 
-    <h1>Staff Performance Report</h1>
+    <h1>Individual Staff Performance Report</h1>
 
     <div class="report-controls">
         <label for="company-select">Select Company:</label>
-        <select id="company-select">
-            <option value="">All Companies</option>
-        </select>
+        <select id="company-select"></select>
 
-        <label for="staff-search">Search Staff:</label>
-        <input type="text" id="staff-search" placeholder="Type to search staff...">
-
-        <label for="staff-select">Select Staff:</label>
-        <select id="staff-select">
-            <option value="">All Staff</option>
-        </select>
+        <label for="staff-search-container">Select Staff:</label>
+        <div class="staff-search-container">
+            <input type="text" id="staff-search" placeholder="Type to search staff...">
+            <select id="staff-select" size="5"></select>
+        </div>
 
         <label for="month-select">Select Month:</label>
-        <select id="month-select">
-            <option value="">All Months</option>
-            </select>
-
-        <button id="view-entries-btn">View Related Entries</button>
+        <select id="month-select"></select>
     </div>
 
-    <div id="summary-report-container" class="report-section">
-        <h2>Performance Summary (Till Date)</h2>
-        <table id="summary-table">
-            <thead>
-                <tr>
-                    <th>Metric</th>
-                    <th>Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td>Total Inflow</td><td id="total-inflow"></td></tr>
-                <tr><td>Total Outflow</td><td id="total-outflow"></td></tr>
-                <tr><td>Total Net Growth</td><td id="total-net-growth"></td></tr>
-            </tbody>
-        </table>
-    </div>
+    <div id="report-container" class="hidden">
+        <div class="report-section" id="overall-contribution-section">
+            <h2>Performance Summary (Till Date)</h2>
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Inflow</h3>
+                    <p id="total-inflow"></p>
+                </div>
+                <div class="card">
+                    <h3>Total Outflow</h3>
+                    <p id="total-outflow"></p>
+                </div>
+                <div class="card">
+                    <h3>Net Growth</h3>
+                    <p id="total-net-growth"></p>
+                </div>
+            </div>
+            <div class="summary-details">
+                <div class="fresh-customers">
+                    <h3>Fresh Customers</h3>
+                    <ul id="fresh-customer-list"></ul>
+                </div>
+            </div>
+        </div>
 
-    <div id="monthly-breakup-container" class="report-section">
-        <h2>Monthly Breakup</h2>
-        <table id="monthly-table">
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Inflow</th>
-                    <th>Outflow</th>
-                    <th>Net Growth</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
-    </div>
+        <div class="report-section" id="customer-loyalty-section">
+            <h2>Customer Loyalty & Retention</h2>
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Churn Rate</h3>
+                    <p id="churn-rate">--</p>
+                </div>
+            </div>
+            <div class="summary-details">
+                <h3>Repeat Business</h3>
+                <ul id="repeat-business-list"></ul>
+            </div>
+        </div>
 
-    <div id="detailed-entries-container" class="report-section" style="display:none;">
-        <h2>Detailed Entries</h2>
-        <table id="detailed-table">
-            <thead>
-                <tr>
+        <div class="report-section" id="monthly-trends-section">
+            <h2>Monthly Breakup</h2>
+            <table id="monthly-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Inflow</th>
+                        <th>Outflow</th>
+                        <th>Net Growth</th>
                     </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="report-section" id="company-performance-section">
+            <h2>Product/Company-Wise Breakdown</h2>
+            <table id="company-breakdown-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Company Name</th>
+                        <th>Inflow</th>
+                        <th>Outflow</th>
+                        <th>Net Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="report-section" id="cumulative-trends-section">
+            <h2>Cumulative Performance Trends</h2>
+            <canvas id="cumulative-performance-chart"></canvas>
+        </div>
+
+        <div class="report-section" id="historical-trends-section">
+            <h2>Historical Performance Trends</h2>
+            <canvas id="performance-chart"></canvas>
+        </div>
+    </div>
+
+    <div id="detailed-entries-container" class="report-section hidden">
+        <button id="back-to-report-btn">← Back to Report</button>
+        <h2>Detailed Entries for <span id="detailed-title"></span></h2>
+        <div class="controls">
+            <label>
+                <input type="checkbox" id="show-customer-name"> Show Customer Names
+            </label>
+        </div>
+        <table id="detailed-table" class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>INF Total</th>
+                    <th>OUT Total</th>
+                    <th>Net</th>
+                    <th class="customer-name-column hidden">Customer Name</th>
+                </tr>
             </thead>
             <tbody>
-                </tbody>
+            </tbody>
         </table>
     </div>
 
