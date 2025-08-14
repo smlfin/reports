@@ -322,7 +322,7 @@ function generateReport() {
                 freshCustomersByStaff.get(staffName).totalNet += currentNet;
             }
 
-            if ((rawCustomerType.trim().toUpperCase() === 'FRESH CUSTOMER/STAFF' || rawCustomerType.trim().toUpperCase() === 'FRESH STAFF') && currentNet > FRESH_STAFF_NET_THRESHOLD) {
+            if ((rawCustomerType.trim().toUpperCase() === 'FRESH CUSTOMER/STAFF' || rawCustomerType.trim().toUpperCase() === 'FRESH STAFF') && currentNet >= FRESH_STAFF_NET_THRESHOLD) {
                 if (staffName) {
                     if (!freshStaffParticipationMap.has(staffName)) {
                         freshStaffParticipationMap.set(staffName, []);
@@ -656,3 +656,4 @@ window.addEventListener('click', (event) => {
 
 // --- Initialize the report when the page loads ---
 document.addEventListener('DOMContentLoaded', init);
+
