@@ -1,13 +1,15 @@
 // fresh_old_report.js
-// This code assumes the HTML structure provided above is present.
 
 // --- Configuration ---
 const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1OOdGnJhw1k6U15Aybn_2JWex_qTShP6w7CXm0_auXnc8vFnvlabPZjK3lsjqkHgn6NgeKKPyu9qW/pub?gid=1720680457&single=true&output=csv';
+const FRESH_STAFF_NET_THRESHOLD = 25000;
 
 // --- Global Data Storage ---
-let allData = []; // Stores all parsed CSV rows
-let headers = []; // Stores CSV headers
-let staffFreshCustomerMap = new Map(); // New: Declared globally to be accessible everywhere.
+let allData = [];
+let headers = [];
+let freshStaffParticipationMap = new Map();
+let freshCustomersByStaff = new Map(); // NEW: Map for fresh customers by staff
+let freshCustomerDetailsMap = new Map();
 
 // Define all individual INF and OUT columns for Net calculation globally for reusability
 const individualInfColumns = [
@@ -20,8 +22,8 @@ const individualOutColumns = [
 ];
 
 // --- Fixed Date Range for Data Validity (April 2025 - March 2026) ---
-const dataStartDate = new Date('2025-04-01T00:00:00'); // April 1, 2025, 00:00:00 local time
-const dataEndDate = new Date('2026-03-31T23:59:59');   // March 31, 2026, 23:59:59 local time
+const dataStartDate = new Date('2025-04-01T00:00:00');
+const dataEndDate = new Date('2026-03-31T23:59:59');
 
 // --- DOM Elements ---
 const monthSelect = document.getElementById('month-select');
@@ -35,12 +37,12 @@ const freshNetEl = document.getElementById('fresh-net');
 const oldNetEl = document.getElementById('old-net');
 const totalFreshCustomersEl = document.getElementById('total-fresh-customers');
 const totalOldCustomersEl = document.getElementById('total-old-customers');
-const totalFreshStaffCustomersEl = document.getElementById('total-fresh-staff-customers'); // New element for Fresh Staff
+const totalFreshStaffParticipationEl = document.getElementById('total-fresh-staff-participation');
 
 const monthlyInflowTableBody = document.querySelector('#monthly-inflow-table tbody');
 const monthlyNetTableBody = document.querySelector('#monthly-net-table tbody');
-const monthlyFreshCustomerCountTableBody = document.querySelector('#monthly-fresh-customer-count-table tbody'); // New table
-const monthlyFreshStaffCustomerCountTableBody = document.querySelector('#monthly-fresh-staff-customer-count-table tbody'); // New table
+const monthlyFreshCustomerCountTableBody = document.querySelector('#monthly-fresh-customer-count-table tbody');
+const monthlyFreshStaffCustomerCountTableBody = document.querySelector('#monthly-fresh-staff-customer-count-table tbody');
 
 const companyFreshOldTableBody = document.querySelector('#company-fresh-old-table tbody');
 
@@ -48,12 +50,16 @@ const detailedEntriesContainer = document.getElementById('detailed-entries-conta
 const detailedTableHead = document.querySelector('#detailed-table thead tr');
 const detailedTableBody = document.querySelector('#detailed-table tbody');
 
-// --- NEW/UPDATED DOM Elements for Modal ---
-const staffPerformanceModal = document.getElementById('staff-performance-modal'); // The modal overlay
-const staffFreshCustomerTableBody = document.querySelector('#staff-fresh-customer-table tbody'); // Still refers to the table inside the modal
-const closeStaffModalButton = document.getElementById('close-staff-modal'); // The close button inside the staff modal
+// --- NEW/UPDATED DOM Elements for Modals ---
+const staffPerformanceModal = document.getElementById('staff-performance-modal');
+const staffFreshCustomerTableBody = document.querySelector('#staff-fresh-customer-table tbody');
+const closeStaffModalButton = document.getElementById('close-staff-modal');
 
-// New Modal for Customer Details
+const freshCustomerModal = document.getElementById('fresh-customer-modal');
+const freshCustomerStaffTableBody = document.querySelector('#fresh-customer-staff-table tbody');
+const closeFreshCustomerModalButton = document.getElementById('close-fresh-customer-modal');
+
+
 const customerDetailsModal = document.getElementById('customer-details-modal');
 const customerDetailsStaffNameEl = document.getElementById('customer-details-staff-name');
 const customerDetailsTableBody = document.querySelector('#customer-details-table tbody');
@@ -61,7 +67,6 @@ const closeCustomerModalButton = document.getElementById('close-customer-modal')
 
 
 // --- Utility Functions ---
-
 function parseLine(line) {
     const fields = [];
     let inQuote = false;
@@ -70,11 +75,17 @@ function parseLine(line) {
         const char = line[i];
         if (char === '"') {
             if (inQuote && i + 1 < line.length && line[i + 1] === '"') {
-                currentField += '"'; i++;
-            } else { inQuote = !inQuote; }
+                currentField += '"';
+                i++;
+            } else {
+                inQuote = !inQuote;
+            }
         } else if (char === ',' && !inQuote) {
-            fields.push(currentField); currentField = '';
-        } else { currentField += char; }
+            fields.push(currentField);
+            currentField = '';
+        } else {
+            currentField += char;
+        }
     }
     fields.push(currentField);
     return fields.map(field => field.trim());
@@ -99,26 +110,31 @@ function parseDate(dateString) {
 }
 
 function formatIndianNumber(num) {
-    if (isNaN(num) || num === null) { return num; }
-    let parts = Math.round(num).toString().split('.'); // Ensure no decimals for display
+    if (isNaN(num) || num === null) {
+        return num;
+    }
+    let parts = Math.round(num).toString().split('.');
     let integerPart = parts[0];
-    let decimalPart = parts.length > 1 ? '.' + parts[1] : ''; // This part will rarely be used after Math.round
+    let decimalPart = parts.length > 1 ? '.' + parts[1] : '';
     let sign = '';
-    if (integerPart.startsWith('-')) { sign = '-'; integerPart = integerPart.substring(1); }
-    if (integerPart.length <= 3) { return sign + integerPart + decimalPart; }
+    if (integerPart.startsWith('-')) {
+        sign = '-';
+        integerPart = integerPart.substring(1);
+    }
+    if (integerPart.length <= 3) {
+        return sign + integerPart + decimalPart;
+    }
     let lastThree = integerPart.substring(integerPart.length - 3);
     let otherNumbers = integerPart.substring(0, integerPart.length - 3);
     otherNumbers = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
     return sign + otherNumbers + ',' + lastThree + decimalPart;
 }
 
-// Helper to sum values from specified columns for a row
 function calculateSumOfColumns(row, headers, columnNames) {
     let sum = 0;
     columnNames.forEach(colName => {
         const colIndex = headers.indexOf(colName);
         if (colIndex !== -1 && row[colIndex] !== undefined && row[colIndex] !== null) {
-            // Round to nearest integer during calculation
             sum += Math.round(parseFloat(String(row[colIndex]).replace(/,/g, '') || 0));
         }
     });
@@ -140,22 +156,21 @@ async function init() {
 
         headers = parseLine(rows[0]);
         const dateColIndex = headers.indexOf('DATE');
-        
+
         allData = rows.slice(1).map(row => {
             const parsedRow = parseLine(row);
             if (dateColIndex !== -1 && parsedRow[dateColIndex]) {
                 const dateObj = parseDate(parsedRow[dateColIndex]);
-                // Store the Date object if valid and within the fixed range
                 if (dateObj && dateObj >= dataStartDate && dateObj <= dataEndDate) {
                     parsedRow[dateColIndex] = dateObj;
                     return parsedRow;
                 }
             }
-            return null; // Invalid date or outside range
-        }).filter(row => row !== null); // Remove null entries
+            return null;
+        }).filter(row => row !== null);
 
         populateFilters();
-        generateReport(); // Generate initial report with all data
+        generateReport();
     } catch (error) {
         console.error('Error initializing report:', error);
         document.querySelector('.report-controls').innerHTML = '<p>Error loading data. Please try again later.</p>';
@@ -166,7 +181,7 @@ async function init() {
 function populateFilters() {
     const companies = new Set();
     const branches = new Set();
-    
+
     const companyColIndex = headers.indexOf('COMPANY NAME');
     const branchColIndex = headers.indexOf('BRANCH');
 
@@ -175,7 +190,6 @@ function populateFilters() {
         if (branchColIndex !== -1) branches.add(row[branchColIndex]);
     });
 
-    // Populate Month Select (similar to staff report, up to current month)
     monthSelect.innerHTML = '<option value="">All Months</option>';
     const today = new Date();
     let currentDateIterator = new Date(dataStartDate);
@@ -183,7 +197,10 @@ function populateFilters() {
         const year = currentDateIterator.getFullYear();
         const month = (currentDateIterator.getMonth() + 1).toString().padStart(2, '0');
         const optionValue = `${year}-${month}`;
-        const optionText = currentDateIterator.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        const optionText = currentDateIterator.toLocaleString('en-IN', {
+            year: 'numeric',
+            month: 'long'
+        });
         const option = document.createElement('option');
         option.value = optionValue;
         option.textContent = optionText;
@@ -191,7 +208,6 @@ function populateFilters() {
         currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
     }
 
-    // Populate Company Select
     companySelect.innerHTML = '<option value="">All Companies</option>';
     Array.from(companies).sort().forEach(company => {
         const option = document.createElement('option');
@@ -200,7 +216,6 @@ function populateFilters() {
         companySelect.appendChild(option);
     });
 
-    // Populate Branch Select
     branchSelect.innerHTML = '<option value="">All Branches</option>';
     Array.from(branches).sort().forEach(branch => {
         const option = document.createElement('option');
@@ -212,7 +227,7 @@ function populateFilters() {
 
 // --- Filter Data based on selections ---
 function getFilteredData(ignoreMonthFilter = false) {
-    const selectedMonth = monthSelect.value; // YYYY-MM
+    const selectedMonth = monthSelect.value;
     const selectedCompany = companySelect.value;
     const selectedBranch = branchSelect.value;
 
@@ -224,8 +239,8 @@ function getFilteredData(ignoreMonthFilter = false) {
         let matchMonth = true;
         let matchCompany = true;
         let matchBranch = true;
-        
-        const rowDate = row[dateColIndex]; // Already a Date object or null
+
+        const rowDate = row[dateColIndex];
 
         if (!ignoreMonthFilter && selectedMonth && rowDate) {
             const rowYearMonth = `${rowDate.getFullYear()}-${(rowDate.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -244,27 +259,24 @@ function getFilteredData(ignoreMonthFilter = false) {
 
 // --- Report Generation ---
 function generateReport() {
-    // Data filtered by all controls (month, company, branch)
-    const filteredDataForOverallAndCompany = getFilteredData(false); 
-    // Data filtered only by company and branch, ignoring month for monthly trends
-    const filteredDataForMonthlyTrends = getFilteredData(true); 
-    
-    // Re-initialize the staff map on every report generation
-    staffFreshCustomerMap = new Map();
+    const filteredDataForOverallAndCompany = getFilteredData(false);
+    const filteredDataForMonthlyTrends = getFilteredData(true);
 
-    // Hide detailed entries and all modals by default
+    freshCustomerDetailsMap = new Map();
+    freshStaffParticipationMap = new Map();
+    freshCustomersByStaff = new Map(); // Reset the map
+
     detailedEntriesContainer.style.display = 'none';
-    staffPerformanceModal.style.display = 'none'; // Hide the staff modal overlay
-    customerDetailsModal.style.display = 'none'; // Hide the new customer details modal overlay
+    staffPerformanceModal.style.display = 'none';
+    customerDetailsModal.style.display = 'none';
+    freshCustomerModal.style.display = 'none';
 
 
-    // Get column indices for calculations
     const freshOldColIndex = headers.indexOf('FRESH/OLD');
     const customerNameColIndex = headers.indexOf('CUSTOMER NAME');
     const companyNameColIndex = headers.indexOf('COMPANY NAME');
-    const staffNameColIndex = headers.indexOf('STAFF NAME'); // New: Staff Name column
+    const staffNameColIndex = headers.indexOf('STAFF NAME');
 
-    // Check if critical columns exist
     if (freshOldColIndex === -1 || customerNameColIndex === -1 || companyNameColIndex === -1 || staffNameColIndex === -1) {
         console.error('One or more required columns (FRESH/OLD, CUSTOMER NAME, COMPANY NAME, STAFF NAME) are missing from the CSV.');
         document.getElementById('overall-contribution-section').innerHTML = '<p>Error: Missing critical data columns. Please ensure "FRESH/OLD", "CUSTOMER NAME", "COMPANY NAME", and "STAFF NAME" columns exist in the data source.</p>';
@@ -273,51 +285,65 @@ function generateReport() {
         return;
     }
 
-    // --- 1. Overall Contribution (Fresh vs. Old) & Customer Distribution ---
+    // --- 1. Overall Contribution & New Fresh Staff Participation Logic ---
     let freshInflow = 0;
     let oldInflow = 0;
     let freshNet = 0;
     let oldNet = 0;
-    const freshCustomers = new Set(); // For FRESH CUSTOMER and FRESH CUSTOMER/FRESH STAFF
+    const freshCustomers = new Set();
     const oldCustomers = new Set();
-    const freshStaffCustomers = new Set(); // For FRESH CUSTOMER/FRESH STAFF
-
-    // For Staff Performance Drilldown
-    // Key: Staff Name, Value: { customers: Set<string>, totalInflow: number, customerDetails: Map<string, number> }
-    
 
     filteredDataForOverallAndCompany.forEach(row => {
-        const rawCustomerType = String(row[freshOldColIndex]).trim().toUpperCase(); 
-        
+        const rawCustomerType = String(row[freshOldColIndex]).trim().toUpperCase();
         const currentInflow = calculateSumOfColumns(row, headers, individualInfColumns);
         const currentOutflow = calculateSumOfColumns(row, headers, individualOutColumns);
         const currentNet = currentInflow - currentOutflow;
         const customerName = row[customerNameColIndex];
         const staffName = row[staffNameColIndex];
+        const companyName = row[companyNameColIndex];
 
-        // MODIFIED LOGIC: Treat 'FRESH CUSTOMER' and 'FRESH CUSTOMER/FRESH STAFF' as the same Fresh category
-        if (rawCustomerType === 'FRESH CUSTOMER' || rawCustomerType === 'FRESH CUSTOMER/FRESH STAFF') {
+        if (rawCustomerType === 'FRESH CUSTOMER' || rawCustomerType === 'FRESH CUSTOMER/STAFF') {
             freshInflow += currentInflow;
             freshNet += currentNet;
             if (customerName) freshCustomers.add(customerName);
 
-            // Separate count for fresh staff
-            if (rawCustomerType === 'FRESH CUSTOMER/FRESH STAFF') {
-                if (customerName) freshStaffCustomers.add(customerName);
-            }
-
-            // Add to staff map if a staff name exists
+            // Populate freshCustomerDetailsMap (for second-level drilldown)
             if (staffName) {
-                if (!staffFreshCustomerMap.has(staffName)) {
-                    staffFreshCustomerMap.set(staffName, { customers: new Set(), totalInflow: 0, customerDetails: new Map() }); // Initialize
+                if (!freshCustomerDetailsMap.has(staffName)) {
+                    freshCustomerDetailsMap.set(staffName, []);
                 }
-                staffFreshCustomerMap.get(staffName).customers.add(customerName);
-                staffFreshCustomerMap.get(staffName).totalInflow += currentInflow; // Accumulate inflow
-
-                // Store customer details for drilldown
-                const currentCustomerInflow = staffFreshCustomerMap.get(staffName).customerDetails.get(customerName) || 0;
-                staffFreshCustomerMap.get(staffName).customerDetails.set(customerName, currentCustomerInflow + currentInflow);
+                freshCustomerDetailsMap.get(staffName).push({
+                    customerName: customerName,
+                    inflow: currentInflow
+                });
             }
+
+            // Populate freshCustomersByStaff (for first-level drilldown)
+            if (staffName && customerName) {
+                if (!freshCustomersByStaff.has(staffName)) {
+                    freshCustomersByStaff.set(staffName, {
+                        customers: new Set(),
+                        totalNet: 0
+                    });
+                }
+                freshCustomersByStaff.get(staffName).customers.add(customerName);
+                freshCustomersByStaff.get(staffName).totalNet += currentNet;
+            }
+
+            // Corrected logic for Fresh Staff Participation
+            if ((rawCustomerType === 'FRESH CUSTOMER/STAFF' || rawCustomerType === 'FRESH STAFF') && currentNet > FRESH_STAFF_NET_THRESHOLD) {
+                if (staffName) {
+                    if (!freshStaffParticipationMap.has(staffName)) {
+                        freshStaffParticipationMap.set(staffName, []);
+                    }
+                    freshStaffParticipationMap.get(staffName).push({
+                        companyName: companyName,
+                        customerName: customerName,
+                        net: currentNet
+                    });
+                }
+            }
+
         } else if (rawCustomerType === 'OLD' || rawCustomerType === 'OLD CUSTOMER' || rawCustomerType === '' || rawCustomerType === 'FRESH CUSTOMER/MINIMUM AMT NIL') {
             oldInflow += currentInflow;
             oldNet += currentNet;
@@ -331,66 +357,68 @@ function generateReport() {
     oldNetEl.textContent = formatIndianNumber(oldNet);
     totalFreshCustomersEl.textContent = freshCustomers.size;
     totalOldCustomersEl.textContent = oldCustomers.size;
-    totalFreshStaffCustomersEl.textContent = freshStaffCustomers.size; // Display new fresh staff count
+    totalFreshStaffParticipationEl.textContent = freshStaffParticipationMap.size;
 
-    // --- Populate Staff Performance Drilldown Table ---
+    // --- Populate the NEW Staff Participation Drilldown Table ---
     staffFreshCustomerTableBody.innerHTML = '';
-    if (staffFreshCustomerMap.size === 0) {
-        staffFreshCustomerTableBody.innerHTML = '<tr><td colspan="4">No fresh customer data for staff with current filters.</td></tr>';
+    const qualifiedStaffEntries = [];
+    freshStaffParticipationMap.forEach((details, staffName) => {
+        details.forEach(entry => {
+            qualifiedStaffEntries.push({
+                staffName: staffName,
+                companyName: entry.companyName,
+                customerName: entry.customerName,
+                net: entry.net
+            });
+        });
+    });
+
+    if (qualifiedStaffEntries.length === 0) {
+        staffFreshCustomerTableBody.innerHTML = '<tr><td colspan="4">No fresh staff participation found that meets the criteria (> ₹25,000 Net).</td></tr>';
     } else {
-        const staffDataArray = Array.from(staffFreshCustomerMap.entries()).map(([staffName, data]) => ({ 
-            staffName: staffName,
-            customerCount: data.customers.size, 
-            totalInflow: data.totalInflow,
-            customerDetails: data.customerDetails
-        }));
-        staffDataArray.sort((a, b) => b.customerCount - a.customerCount);
-
-        staffDataArray.forEach(staffEntry => {
+        qualifiedStaffEntries.sort((a, b) => b.net - a.net);
+        qualifiedStaffEntries.forEach(entry => {
             const row = staffFreshCustomerTableBody.insertRow();
-            row.insertCell().textContent = staffEntry.staffName;
-            
-            const countCell = row.insertCell();
-            countCell.textContent = staffEntry.customerCount;
-            countCell.classList.add('clickable-count');
-            countCell.dataset.staffName = staffEntry.staffName;
-            
-            countCell.addEventListener('click', () => showCustomerDetailsDrilldown(staffEntry.staffName));
-
-            row.insertCell().textContent = formatIndianNumber(staffEntry.totalInflow);
-            const averageInflow = staffEntry.customerCount > 0 ? staffEntry.totalInflow / staffEntry.customerCount : 0;
-            row.insertCell().textContent = formatIndianNumber(averageInflow);
+            row.insertCell().textContent = entry.staffName;
+            row.insertCell().textContent = entry.companyName;
+            row.insertCell().textContent = entry.customerName;
+            row.insertCell().textContent = formatIndianNumber(entry.net);
         });
     }
 
-    // --- 2. Monthly Trends (Inflow, Net, Fresh Customer Count, Fresh Staff Count) ---
-    const monthlyData = {}; // Key: YYYY-MM, Value: { Fresh: {inflow, net, customers: Set, staffCustomers: Set}, Old: {inflow, net} }
 
-    filteredDataForMonthlyTrends.forEach(row => { // Use data filtered only by company/branch
+    // --- 2. Monthly Trends ---
+    const monthlyData = {};
+
+    filteredDataForMonthlyTrends.forEach(row => {
         const date = row[headers.indexOf('DATE')];
         if (!date) return;
         const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-        
-        const rawCustomerType = String(row[freshOldColIndex]).trim().toUpperCase(); 
-
+        const rawCustomerType = String(row[freshOldColIndex]).trim().toUpperCase();
         const currentInflow = calculateSumOfColumns(row, headers, individualInfColumns);
         const currentOutflow = calculateSumOfColumns(row, headers, individualOutColumns);
         const currentNet = currentInflow - currentOutflow;
         const customerName = row[customerNameColIndex];
 
         if (!monthlyData[yearMonth]) {
-            monthlyData[yearMonth] = { 
-                Fresh: { inflow: 0, net: 0, customers: new Set(), staffCustomers: new Set() }, 
-                Old: { inflow: 0, net: 0 } 
+            monthlyData[yearMonth] = {
+                Fresh: {
+                    inflow: 0,
+                    net: 0,
+                    customers: new Set(),
+                    staffCustomers: new Set()
+                },
+                Old: {
+                    inflow: 0,
+                    net: 0
+                }
             };
         }
-
-        // MODIFIED LOGIC: Combine 'FRESH CUSTOMER' and 'FRESH CUSTOMER/FRESH STAFF' for monthly totals
-        if (rawCustomerType === 'FRESH CUSTOMER' || rawCustomerType === 'FRESH CUSTOMER/FRESH STAFF') {
+        if (rawCustomerType === 'FRESH CUSTOMER' || rawCustomerType === 'FRESH CUSTOMER/STAFF') {
             monthlyData[yearMonth].Fresh.inflow += currentInflow;
             monthlyData[yearMonth].Fresh.net += currentNet;
             if (customerName) monthlyData[yearMonth].Fresh.customers.add(customerName);
-            if (rawCustomerType === 'FRESH CUSTOMER/FRESH STAFF') {
+            if (rawCustomerType === 'FRESH CUSTOMER/STAFF' || rawCustomerType === 'FRESH STAFF') {
                 if (customerName) monthlyData[yearMonth].Fresh.staffCustomers.add(customerName);
             }
         } else if (rawCustomerType === 'OLD' || rawCustomerType === 'OLD CUSTOMER' || rawCustomerType === '' || rawCustomerType === 'FRESH CUSTOMER/MINIMUM AMT NIL') {
@@ -399,7 +427,6 @@ function generateReport() {
         }
     });
 
-    // Render Monthly Inflow Table
     monthlyInflowTableBody.innerHTML = '';
     monthlyNetTableBody.innerHTML = '';
     monthlyFreshCustomerCountTableBody.innerHTML = '';
@@ -414,28 +441,27 @@ function generateReport() {
     } else {
         sortedMonths.forEach(monthKey => {
             const data = monthlyData[monthKey];
-            const monthName = new Date(monthKey + '-01').toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+            const monthName = new Date(monthKey + '-01').toLocaleString('en-IN', {
+                year: 'numeric',
+                month: 'long'
+            });
 
-            // Inflow Row
             let inflowRow = monthlyInflowTableBody.insertRow();
             inflowRow.insertCell().textContent = monthName;
             inflowRow.insertCell().textContent = formatIndianNumber(data.Fresh.inflow);
             inflowRow.insertCell().textContent = formatIndianNumber(data.Old.inflow);
             inflowRow.insertCell().textContent = formatIndianNumber(data.Fresh.inflow + data.Old.inflow);
 
-            // Net Growth Row
             let netRow = monthlyNetTableBody.insertRow();
             netRow.insertCell().textContent = monthName;
             netRow.insertCell().textContent = formatIndianNumber(data.Fresh.net);
             netRow.insertCell().textContent = formatIndianNumber(data.Old.net);
             netRow.insertCell().textContent = formatIndianNumber(data.Fresh.net + data.Old.net);
 
-            // Fresh Customer Count Row
             let freshCustCountRow = monthlyFreshCustomerCountTableBody.insertRow();
             freshCustCountRow.insertCell().textContent = monthName;
             freshCustCountRow.insertCell().textContent = data.Fresh.customers.size;
 
-            // Fresh Staff Customer Count Row
             let freshStaffCustCountRow = monthlyFreshStaffCustomerCountTableBody.insertRow();
             freshStaffCustCountRow.insertCell().textContent = monthName;
             freshStaffCustCountRow.insertCell().textContent = data.Fresh.staffCustomers.size;
@@ -443,23 +469,30 @@ function generateReport() {
     }
 
     // --- 3. Company-wise Contribution by Customer Type ---
-    const companyData = {}; // Key: CompanyName, Value: { Fresh: {inflow, net}, Old: {inflow, net} }
-    filteredDataForOverallAndCompany.forEach(row => { // Use data filtered by all controls
+    const companyData = {};
+    filteredDataForOverallAndCompany.forEach(row => {
         const companyName = row[companyNameColIndex];
         if (!companyName) return;
-        
-        const rawCustomerType = String(row[freshOldColIndex]).trim().toUpperCase(); 
 
+        const rawCustomerType = String(row[freshOldColIndex]).trim().toUpperCase();
         const currentInflow = calculateSumOfColumns(row, headers, individualInfColumns);
         const currentOutflow = calculateSumOfColumns(row, headers, individualOutColumns);
         const currentNet = currentInflow - currentOutflow;
 
         if (!companyData[companyName]) {
-            companyData[companyName] = { Fresh: { inflow: 0, net: 0 }, Old: { inflow: 0, net: 0 } };
+            companyData[companyName] = {
+                Fresh: {
+                    inflow: 0,
+                    net: 0
+                },
+                Old: {
+                    inflow: 0,
+                    net: 0
+                }
+            };
         }
-        
-        // MODIFIED LOGIC: Combine 'FRESH CUSTOMER' and 'FRESH CUSTOMER/FRESH STAFF' for company totals
-        if (rawCustomerType === 'FRESH CUSTOMER' || rawCustomerType === 'FRESH CUSTOMER/FRESH STAFF') {
+
+        if (rawCustomerType === 'FRESH CUSTOMER' || rawCustomerType === 'FRESH CUSTOMER/STAFF') {
             companyData[companyName].Fresh.inflow += currentInflow;
             companyData[companyName].Fresh.net += currentNet;
         } else if (rawCustomerType === 'OLD' || rawCustomerType === 'OLD CUSTOMER' || rawCustomerType === '' || rawCustomerType === 'FRESH CUSTOMER/MINIMUM AMT NIL') {
@@ -481,18 +514,19 @@ function generateReport() {
             row.insertCell().textContent = formatIndianNumber(data.Fresh.net);
             row.insertCell().textContent = formatIndianNumber(data.Old.inflow);
             row.insertCell().textContent = formatIndianNumber(data.Old.net);
-            row.insertCell().textContent = formatIndianNumber(data.Fresh.inflow + data.Old.inflow); // Total Inflow
-            row.insertCell().textContent = formatIndianNumber(data.Fresh.net + data.Old.net);     // Total Net
+            row.insertCell().textContent = formatIndianNumber(data.Fresh.inflow + data.Old.inflow);
+            row.insertCell().textContent = formatIndianNumber(data.Fresh.net + data.Old.net);
         });
     }
 }
 
 // --- Detailed Entries View ---
 function viewDetailedEntries() {
-    const filteredData = getFilteredData(false); // Respect all filters
+    const filteredData = getFilteredData(false);
     detailedEntriesContainer.style.display = 'block';
-    staffPerformanceModal.style.display = 'none'; // Hide staff modal when showing detailed entries
-    customerDetailsModal.style.display = 'none'; // Hide customer details modal
+    staffPerformanceModal.style.display = 'none';
+    customerDetailsModal.style.display = 'none';
+    freshCustomerModal.style.display = 'none';
 
     detailedTableHead.innerHTML = '';
     headers.forEach(header => {
@@ -512,19 +546,17 @@ function viewDetailedEntries() {
         rowData.forEach((cellData, index) => {
             const td = tr.insertCell();
             let content = cellData;
-            
+
             if (headers[index] === 'DATE' && cellData instanceof Date) {
-                content = cellData.toLocaleDateString('en-IN'); // e.g., 19/07/2025
+                content = cellData.toLocaleDateString('en-IN');
             } else {
-                // Keep 'INF Total' and 'OUT Total' here for display, even if not used in current Net calculation
                 const numericalHeaders = [
                     'SML NCD INF', 'SML SD INF', 'SML GB INF', 'SML BDSL', 'VFL NCD INF', 'VFL SD INF', 'VFL GB INF',
                     'SNL FD INF', 'LLP INF', 'INF Total', 'VFL NCD OUT', 'VFL BD OUT', 'SML PURCHASE',
-                    'SML NCD OUT', 'SML SD OUT', 'SML GB OUT', 'LLP OUT', 'Net' 
+                    'SML NCD OUT', 'SML SD OUT', 'SML GB OUT', 'LLP OUT', 'Net'
                 ];
                 if (numericalHeaders.includes(headers[index].trim())) {
-                    // Apply rounding for display to match user's request for no decimals
-                    const numValue = Math.round(parseFloat(String(content).replace(/,/g, ''))); 
+                    const numValue = Math.round(parseFloat(String(content).replace(/,/g, '')));
                     if (!isNaN(numValue)) {
                         content = formatIndianNumber(numValue);
                     }
@@ -535,37 +567,77 @@ function viewDetailedEntries() {
     });
 }
 
-// --- Drilldown Function for Staff Performance (UPDATED for modal) ---
-function showStaffPerformanceDrilldown() {
-    // Ensure detailed entries and other modals are hidden
-    detailedEntriesContainer.style.display = 'none'; 
+// --- First-level drilldown: Fresh Customers by Staff ---
+function showFreshCustomersByStaffDrilldown() {
+    detailedEntriesContainer.style.display = 'none';
+    staffPerformanceModal.style.display = 'none';
     customerDetailsModal.style.display = 'none';
+    freshCustomerModal.style.display = 'flex';
 
-    // Show the staff performance modal overlay using flex to enable centering
+    freshCustomerStaffTableBody.innerHTML = '';
+
+    if (freshCustomersByStaff.size === 0) {
+        freshCustomerStaffTableBody.innerHTML = '<tr><td colspan="3">No fresh customer data available.</td></tr>';
+        return;
+    }
+
+    // Convert map to array and sort by fresh customer count in descending order
+    const sortedStaff = Array.from(freshCustomersByStaff.entries()).sort((a, b) => b[1].customers.size - a[1].customers.size);
+
+    sortedStaff.forEach(([staffName, data]) => {
+        const row = freshCustomerStaffTableBody.insertRow();
+        row.insertCell().textContent = staffName;
+
+        const freshCustomerCountCell = row.insertCell();
+        freshCustomerCountCell.textContent = data.customers.size;
+        freshCustomerCountCell.classList.add('clickable-total');
+        freshCustomerCountCell.addEventListener('click', () => showCustomerDetailsDrilldown(staffName));
+
+        row.insertCell().textContent = formatIndianNumber(data.totalNet);
+    });
+}
+
+function closeFreshCustomerModal() {
+    freshCustomerModal.style.display = 'none';
+}
+
+
+// --- Drilldown Function for Staff Performance (UPDATED) ---
+function showStaffPerformanceDrilldown() {
+    detailedEntriesContainer.style.display = 'none';
+    customerDetailsModal.style.display = 'none';
+    freshCustomerModal.style.display = 'none';
+
+    // Show the staff performance modal overlay
     staffPerformanceModal.style.display = 'flex';
 }
 
-// --- Function to close the staff performance modal ---
 function closeStaffPerformanceModal() {
     staffPerformanceModal.style.display = 'none';
 }
 
-// --- NEW Drilldown Function for Customer Details ---
+// --- Second-level drilldown: Customer Details for a Staff Member ---
 function showCustomerDetailsDrilldown(staffName) {
-    // Hide staff performance modal
     staffPerformanceModal.style.display = 'none';
     detailedEntriesContainer.style.display = 'none';
+    freshCustomerModal.style.display = 'none';
 
     customerDetailsStaffNameEl.textContent = `Customer Details for Staff: ${staffName}`;
     customerDetailsTableBody.innerHTML = '';
 
-    const staffData = staffFreshCustomerMap.get(staffName);
+    const staffData = freshCustomerDetailsMap.get(staffName);
 
-    if (!staffData || staffData.customerDetails.size === 0) {
+    if (!staffData || staffData.length === 0) {
         customerDetailsTableBody.innerHTML = '<tr><td colspan="2">No fresh customer details found for this staff member.</td></tr>';
     } else {
-        // Convert map to array and sort by customer name
-        const sortedCustomers = Array.from(staffData.customerDetails.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        // Aggregate inflow by customer name, as there can be multiple entries
+        const customerInflowMap = new Map();
+        staffData.forEach(entry => {
+            const currentInflow = customerInflowMap.get(entry.customerName) || 0;
+            customerInflowMap.set(entry.customerName, currentInflow + entry.inflow);
+        });
+
+        const sortedCustomers = Array.from(customerInflowMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
         sortedCustomers.forEach(([customerName, totalInflow]) => {
             const row = customerDetailsTableBody.insertRow();
@@ -574,32 +646,35 @@ function showCustomerDetailsDrilldown(staffName) {
         });
     }
 
-    // Show the new customer details modal
     customerDetailsModal.style.display = 'flex';
 }
 
-// --- NEW Function to close the customer details modal ---
 function closeCustomerDetailsModal() {
     customerDetailsModal.style.display = 'none';
 }
-
 
 // --- Event Listeners ---
 monthSelect.addEventListener('change', generateReport);
 companySelect.addEventListener('change', generateReport);
 branchSelect.addEventListener('change', generateReport);
 viewEntriesBtn.addEventListener('click', viewDetailedEntries);
-totalFreshCustomersEl.addEventListener('click', showStaffPerformanceDrilldown);
-totalFreshStaffCustomersEl.addEventListener('click', showStaffPerformanceDrilldown);
+
+// UPDATED Event Listener for Fresh Customers
+totalFreshCustomersEl.addEventListener('click', showFreshCustomersByStaffDrilldown);
+
+totalFreshStaffParticipationEl.addEventListener('click', showStaffPerformanceDrilldown);
 
 // --- NEW Event Listeners for the modals ---
 closeStaffModalButton.addEventListener('click', closeStaffPerformanceModal);
+closeFreshCustomerModalButton.addEventListener('click', closeFreshCustomerModal);
 closeCustomerModalButton.addEventListener('click', closeCustomerDetailsModal);
 
-// Optional: Close modals if user clicks outside the modal content
 window.addEventListener('click', (event) => {
     if (event.target === staffPerformanceModal) {
         closeStaffPerformanceModal();
+    }
+    if (event.target === freshCustomerModal) {
+        closeFreshCustomerModal();
     }
     if (event.target === customerDetailsModal) {
         closeCustomerDetailsModal();
