@@ -1,14 +1,14 @@
 /* fresh_old_report.css */
 
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Roboto', sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #eef1f5; /* Lighter background for a cleaner look */
+    background-color: #eef1f5;
     color: #333;
 }
 
-.report-container {
+.container {
     max-width: 1200px;
     margin: 20px auto;
     padding: 20px;
@@ -17,20 +17,20 @@ body {
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-.home-button {
-    display: inline-block;
-    padding: 10px 15px;
-    margin-bottom: 20px;
-    background-color: #3b5998; /* A more professional blue */
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
+header {
+    text-align: center;
+    margin-bottom: 25px;
 }
 
-.home-button:hover {
-    background-color: #2d4373;
+header h1 {
+    margin: 0;
+    color: #3b5998;
+    font-size: 2.2rem;
+}
+
+header p.date-range {
+    color: #666;
+    margin-top: 5px;
 }
 
 .report-controls {
@@ -45,15 +45,6 @@ body {
     align-items: flex-end;
 }
 
-.report-controls h1 {
-    width: 100%;
-    margin: 0 0 15px 0;
-    font-size: 1.8rem;
-    color: #3b5998;
-    border-bottom: 2px solid #3b5998;
-    padding-bottom: 10px;
-}
-
 .filter-group {
     display: flex;
     flex-direction: column;
@@ -66,38 +57,34 @@ body {
 }
 
 .report-controls select,
-.report-controls input[type="text"] {
+.report-controls button {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 1rem;
     min-width: 180px;
-    appearance: none; /* Remove default select arrow */
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007bff%22%20d%3D%22M287%20197.4l-116.8-116.8c-4.3-4.3-11.2-4.3-15.5%200L11.8%20197.4c-4.3%204.3-4.3%2011.2%200%2015.5l15.5%2015.5c4.3%204.3%2011.2%204.3%2015.5%200l94.1-94.1c4.3-4.3%2011.2-4.3%2015.5%200l94.1%2094.1c4.3%204.3%2011.2%204.3%2015.5%200l15.5-15.5c4.3-4.3%204.3-11.2%200-15.5z%22%2F%3E%3C%2Fsvg%3E');
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 12px;
 }
 
 .report-controls button {
-    padding: 10px 20px;
     background-color: #3b5998;
     color: white;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
-    font-size: 1rem;
     font-weight: bold;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    transition: background-color 0.3s ease;
 }
 
 .report-controls button:hover {
     background-color: #2d4373;
-    transform: translateY(-2px);
+}
+
+.report-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
 .report-section {
-    margin-top: 30px;
     padding: 25px;
     background-color: #fff;
     border-radius: 12px;
@@ -115,56 +102,7 @@ body {
     letter-spacing: 1px;
 }
 
-.table-responsive {
-    overflow-x: auto;
-}
-
-.report-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 15px;
-    border-radius: 8px;
-    overflow: hidden; /* Ensures rounded corners are applied */
-}
-
-.report-table th,
-.report-table td {
-    border: 1px solid #e0e0e0;
-    padding: 12px 15px;
-    text-align: left;
-    white-space: nowrap;
-}
-
-.report-table th {
-    background-color: #3b5998;
-    color: white;
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-    text-align: center;
-}
-
-.report-table td {
-    text-align: center;
-}
-
-.report-table tbody tr:nth-child(even) {
-    background-color: #f8faff; /* Lighter blue for alternating rows */
-}
-
-.report-table tbody tr:hover {
-    background-color: #eef2f8; /* A different shade of hover color */
-}
-
-.info-message {
-    text-align: center;
-    color: #666;
-    padding: 20px;
-    font-style: italic;
-}
-
-/* Overall Summary Section */
-.overall-summary {
+.summary-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
@@ -172,7 +110,7 @@ body {
 }
 
 .summary-card {
-    background-color: #f0f4f8; /* Light gray-blue */
+    background-color: #f0f4f8;
     border: 1px solid #dcdfe6;
     padding: 20px;
     border-radius: 10px;
@@ -207,7 +145,57 @@ body {
     color: #0056b3;
 }
 
-/* Modal specific styles */
+.table-container {
+    margin-bottom: 25px;
+}
+
+.table-container h3 {
+    text-align: center;
+    color: #555;
+    margin-bottom: 15px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.report-table th,
+.report-table td {
+    border: 1px solid #e0e0e0;
+    padding: 12px 15px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.report-table th {
+    background-color: #3b5998;
+    color: white;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.report-table td {
+    text-align: center;
+}
+
+.report-table tbody tr:nth-child(even) {
+    background-color: #f8faff;
+}
+
+.report-table tbody tr:hover {
+    background-color: #eef2f8;
+}
+
 .modal-overlay {
     display: none;
     position: fixed;
@@ -237,12 +225,11 @@ body {
 
 .close-button {
     color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
     position: absolute;
     top: 10px;
     right: 20px;
+    font-size: 28px;
+    font-weight: bold;
     cursor: pointer;
 }
 
@@ -250,38 +237,24 @@ body {
 .close-button:focus {
     color: black;
     text-decoration: none;
-    cursor: pointer;
 }
 
 .report-section-modal h2 {
-    padding-bottom: 0;
-    border-bottom: none;
     margin-bottom: 10px;
 }
 
-/* Adjustments for responsive design */
 @media (max-width: 768px) {
     .report-controls {
         flex-direction: column;
         align-items: stretch;
     }
-
-    .report-controls h1 {
-        text-align: center;
-    }
-
-    .report-controls select,
-    .report-controls input[type="text"],
     .report-controls button {
         width: 100%;
-        min-width: unset;
     }
-
     .modal-content {
         width: 95%;
         padding: 15px;
     }
-
     .report-table th,
     .report-table td {
         padding: 8px 10px;
