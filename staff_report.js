@@ -4,41 +4,51 @@
 const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1OOdGnJhw1k6U15Aybn_2JWex_qTShP6w7CXm0_auXnc8vFnvlabPZjK3lsjqkHgn6NgeKKPyu9qW/pub?gid=1720680457&single=true&output=csv';
 
 // --- Global Data Storage ---
-let allData = []; // Stores all parsed CSV rows
-let headers = []; // Stores CSV headers
-let allStaffNames = []; // Stores all unique staff names for search functionality
+let allData = [];
+let headers = [];
+let allStaffNames = [];
+let freshCustomerDetailsMap = new Map();
+let myChart = null;
+let myCumulativeChart = null;
 
 // --- Fixed Date Range for Data Validity ---
-const dataStartDate = new Date('2025-04-01T00:00:00'); // April 1, 2025, 00:00:00 local time
-const dataEndDate = new Date('2026-03-31T23:59:59');   // March 31, 2026, 23:59:59 local time
+const dataStartDate = new Date('2025-04-01T00:00:00');
+const dataEndDate = new Date('2026-03-31T23:59:59');
 
 // --- DOM Elements ---
+const reportContainer = document.getElementById('report-container');
 const companySelect = document.getElementById('company-select');
 const staffSearchInput = document.getElementById('staff-search');
 const staffSelect = document.getElementById('staff-select');
 const monthSelect = document.getElementById('month-select');
-const viewEntriesBtn = document.getElementById('view-entries-btn');
 
 const totalInflowEl = document.getElementById('total-inflow');
 const totalOutflowEl = document.getElementById('total-outflow');
 const totalNetGrowthEl = document.getElementById('total-net-growth');
+const freshCustomerListEl = document.getElementById('fresh-customer-list');
+
+const churnRateEl = document.getElementById('churn-rate');
+const repeatBusinessListEl = document.getElementById('repeat-business-list');
 
 const monthlyTableBody = document.querySelector('#monthly-table tbody');
+const companyBreakdownTableBody = document.querySelector('#company-breakdown-table tbody');
+const productBreakdownTableBody = document.querySelector('#product-breakdown-table tbody'); // NEW: Product breakdown table body
 const detailedEntriesContainer = document.getElementById('detailed-entries-container');
-const detailedTableHead = document.querySelector('#detailed-table thead tr');
+const backToReportBtn = document.getElementById('back-to-report-btn');
+const detailedTitleEl = document.getElementById('detailed-title');
 const detailedTableBody = document.querySelector('#detailed-table tbody');
+const showCustomerNameCheckbox = document.getElementById('show-customer-name');
+const performanceChartCanvas = document.getElementById('performance-chart');
+const cumulativePerformanceChartCanvas = document.getElementById('cumulative-performance-chart');
+
 
 // --- Utility Functions ---
-
-// Function to parse a single CSV line, handling quoted fields and escaped quotes
 function parseLine(line) {
     const fields = [];
     let inQuote = false;
     let currentField = '';
-
     for (let i = 0; i < line.length; i++) {
         const char = line[i];
-
         if (char === '"') {
             if (inQuote && i + 1 < line.length && line[i + 1] === '"') {
                 currentField += '"';
@@ -54,75 +64,64 @@ function parseLine(line) {
         }
     }
     fields.push(currentField);
-    // Trim each field after parsing
     return fields.map(field => field.trim());
 }
 
-// Robust Date Parsing Function (handles dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy)
 function parseDate(dateString) {
     if (!dateString) return null;
-
-    // Replace all common separators with / for easier splitting
     const normalizedDateString = dateString.replace(/[-.]/g, '/');
     const parts = normalizedDateString.split('/');
-
     if (parts.length === 3) {
         let day = parseInt(parts[0], 10);
-        let month = parseInt(parts[1], 10); // Month is 1-indexed here
+        let month = parseInt(parts[1], 10);
         let year = parseInt(parts[2], 10);
-
-        // Basic validation (e.g., valid day, month, year ranges)
         if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= 2100) {
-            // Create a Date object. Month in Date constructor is 0-indexed.
             const date = new Date(year, month - 1, day);
-            
-            // Validate if the created date matches the input parts (e.g., to catch 'Feb 30')
-            // This ensures we don't get an invalid date from valid-looking parts
             if (date.getDate() === day && (date.getMonth() + 1) === month && date.getFullYear() === year) {
                 return date;
             }
         }
     }
-    return null; // Return null for invalid or unparseable dates
+    return null;
 }
 
-// Function to format numbers in Indian style (xx,xx,xxx)
 function formatIndianNumber(num) {
-    if (isNaN(num) || num === null) {
-        return num; // Return as is if not a number or null
-    }
-
-    let parts = num.toString().split('.');
+    if (isNaN(num) || num === null) return num;
+    let parts = num.toFixed(0).toString().split('.');
     let integerPart = parts[0];
     let decimalPart = parts.length > 1 ? '.' + parts[1] : '';
-
     let sign = '';
     if (integerPart.startsWith('-')) {
         sign = '-';
         integerPart = integerPart.substring(1);
     }
-
-    if (integerPart.length <= 3) {
-        return sign + integerPart + decimalPart;
-    }
-
+    if (integerPart.length <= 3) return sign + integerPart + decimalPart;
     let lastThree = integerPart.substring(integerPart.length - 3);
     let otherNumbers = integerPart.substring(0, integerPart.length - 3);
-
     otherNumbers = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
-
     return sign + otherNumbers + ',' + lastThree + decimalPart;
 }
 
-// NEW: Helper function to parse a numerical value from a string, handling empty/null and commas
 function parseNumericalValue(valueString) {
     if (valueString === null || valueString === undefined || valueString === '') {
-        return 0; // Treat empty/null values as 0 for calculations
+        return 0;
     }
-    // Remove all commas and then parse as float
-    const cleanedValue = valueString.replace(/,/g, '');
+    const cleanedValue = String(valueString).replace(/,/g, '');
     const parsedValue = parseFloat(cleanedValue);
-    return isNaN(parsedValue) ? 0 : parsedValue; // Return 0 if parsing results in NaN
+    return isNaN(parsedValue) ? 0 : parsedValue;
+}
+
+function getValueFromRow(row, headers, columnName) {
+    const colIndex = headers.indexOf(columnName);
+    if (colIndex !== -1 && row[colIndex] !== undefined && row[colIndex] !== null) {
+        return parseNumericalValue(row[colIndex]);
+    }
+    return 0;
+}
+
+function isFreshCustomer(customerType) {
+    const freshTypes = ['FRESH CUSTOMER', 'FRESH CUSTOMER/STAFF', 'FRESH STAFF'];
+    return freshTypes.includes(String(customerType).trim().toUpperCase());
 }
 
 // --- Main Data Fetching and Initialization ---
@@ -137,32 +136,24 @@ async function init() {
             return;
         }
 
-        // Ensure headers are trimmed to prevent matching issues
         headers = parseLine(rows[0]).map(header => header.trim());
-        
-        // Parse all data rows and convert date strings to Date objects immediately
-        // Filter out rows with invalid dates or dates outside the data range (April 2025 - March 2026)
         allData = rows.slice(1).map(row => {
             const parsedRow = parseLine(row);
             const dateColIndex = headers.indexOf('DATE');
-            
-            // If the row has fewer columns than headers, pad with nulls to prevent issues
             while (parsedRow.length < headers.length) {
                 parsedRow.push(null);
             }
-
             if (dateColIndex !== -1 && parsedRow[dateColIndex]) {
                 const dateObj = parseDate(parsedRow[dateColIndex]);
                 if (dateObj && dateObj >= dataStartDate && dateObj <= dataEndDate) {
-                    parsedRow[dateColIndex] = dateObj; // Replace date string with Date object
+                    parsedRow[dateColIndex] = dateObj;
                     return parsedRow;
                 }
             }
-            return null; // Invalid date or outside range, mark for removal
-        }).filter(row => row !== null); // Remove null entries (invalid/out of range dates)
+            return null;
+        }).filter(row => row !== null);
 
         populateFilters();
-        generateReport(); // Generate initial report with all data
     } catch (error) {
         console.error('Error initializing report:', error);
         document.querySelector('.report-controls').innerHTML = '<p>Error loading data. Please try again later.</p>';
@@ -173,7 +164,7 @@ async function init() {
 function populateFilters() {
     const companies = new Set();
     const staffNames = new Set();
-    
+
     const companyColIndex = headers.indexOf('COMPANY NAME');
     const staffColIndex = headers.indexOf('STAFF NAME');
 
@@ -182,7 +173,6 @@ function populateFilters() {
         if (staffColIndex !== -1 && row[staffColIndex]) staffNames.add(row[staffColIndex]);
     });
 
-    // Populate Company Select
     companySelect.innerHTML = '<option value="">All Companies</option>';
     Array.from(companies).sort().forEach(company => {
         const option = document.createElement('option');
@@ -191,36 +181,26 @@ function populateFilters() {
         companySelect.appendChild(option);
     });
 
-    // Store all staff names for search functionality
     allStaffNames = Array.from(staffNames).sort();
-    filterStaffList(); // Populate staff select initially (all staff)
+    filterStaffList();
 
-    // Populate Month Select based on current date and defined range (April 2025 - March 2026)
     monthSelect.innerHTML = '<option value="">All Months</option>';
-    
-    // Use the dataEndDate as the upper limit for months to display, not the current date
-    let currentDateIterator = new Date(dataStartDate); // Start from April 2025
-    while (currentDateIterator <= dataEndDate) { // Iterate up to dataEndDate
+    let currentDateIterator = new Date(dataStartDate);
+    while (currentDateIterator <= dataEndDate) {
         const year = currentDateIterator.getFullYear();
         const month = (currentDateIterator.getMonth() + 1).toString().padStart(2, '0');
         const optionValue = `${year}-${month}`;
         const optionText = currentDateIterator.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
-
         const option = document.createElement('option');
         option.value = optionValue;
         option.textContent = optionText;
         monthSelect.appendChild(option);
-
-        // Move to the next month
         currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
     }
 }
 
-// --- Filter Staff Dropdown based on Search Input ---
 function filterStaffList() {
     const searchTerm = staffSearchInput.value.toLowerCase();
-    staffSelect.innerHTML = '<option value="">All Staff</option>'; // Always include 'All Staff' option
-
     const selectedCompany = companySelect.value;
     let relevantStaff = allStaffNames;
 
@@ -236,194 +216,415 @@ function filterStaffList() {
         relevantStaff = Array.from(staffInCompany).sort();
     }
 
-    relevantStaff.filter(staff => staff.toLowerCase().includes(searchTerm))
-                 .forEach(staff => {
-                     const option = document.createElement('option');
-                     option.value = staff;
-                     option.textContent = staff;
-                     staffSelect.appendChild(option);
-                 });
-    
-    const exactMatchOption = relevantStaff.find(staff => staff.toLowerCase() === searchTerm);
-    if (exactMatchOption && searchTerm !== '') { // Only pre-select if there's a search term
-        staffSelect.value = exactMatchOption;
-    } else {
-        staffSelect.selectedIndex = 0; // Otherwise, default to 'All Staff'
-    }
+    const filteredStaff = relevantStaff.filter(staff => staff.toLowerCase().includes(searchTerm));
 
-    generateReport(); // Re-generate report after staff list is filtered
-}
-
-
-// --- Filter Data based on selections ---
-function getFilteredData() {
-    const selectedCompany = companySelect.value;
-    const selectedStaff = staffSelect.value;
-    const selectedMonth = monthSelect.value; // YYYY-MM format
-
-    const dateColIndex = headers.indexOf('DATE');
-    const companyColIndex = headers.indexOf('COMPANY NAME');
-    const staffColIndex = headers.indexOf('STAFF NAME');
-
-    return allData.filter(row => {
-        let matchCompany = true;
-        let matchStaff = true;
-        let matchMonth = true;
-        
-        // Date is already a Date object due to pre-processing in init()
-        const rowDate = row[dateColIndex]; // This is now a Date object or null
-
-        // Filter by company
-        if (selectedCompany && companyColIndex !== -1) {
-            matchCompany = (row[companyColIndex] === selectedCompany);
-        }
-        
-        // Filter by staff
-        if (selectedStaff && staffColIndex !== -1) {
-            matchStaff = (row[staffColIndex] === selectedStaff);
-        }
-        
-        // Filter by month (and implicitly by the overall dataStartDate/endDate as invalid/out-of-range rows were removed in init)
-        if (selectedMonth && rowDate) { // Only filter by month if a specific month is selected and rowDate is valid
-            const rowYearMonth = `${rowDate.getFullYear()}-${(rowDate.getMonth() + 1).toString().padStart(2, '0')}`;
-            matchMonth = (rowYearMonth === selectedMonth);
-        }
-        return matchCompany && matchStaff && matchMonth;
+    staffSelect.innerHTML = '<option value="">Select Staff</option>';
+    filteredStaff.forEach(staff => {
+        const option = document.createElement('option');
+        option.value = staff;
+        option.textContent = staff;
+        staffSelect.appendChild(option);
     });
 }
 
 // --- Report Generation ---
 function generateReport() {
-    const filteredData = getFilteredData();
+    const selectedStaff = staffSelect.value;
+    if (!selectedStaff) {
+        reportContainer.classList.add('hidden');
+        detailedEntriesContainer.classList.add('hidden');
+        return;
+    }
 
-    // Hide detailed entries by default when report is generated/re-generated
-    detailedEntriesContainer.style.display = 'none';
+    reportContainer.classList.remove('hidden');
+    detailedEntriesContainer.classList.add('hidden');
 
-    // Calculate Till Date Summary
-    let totalInflow = 0;
-    let totalOutflow = 0;
-    
-    // Ensure header names are exactly as in the CSV, after trimming
-    const infTotalColIndex = headers.indexOf('INF Total');
-    const outTotalColIndex = headers.indexOf('OUT Total');
+    const selectedMonth = monthSelect.value;
 
-    filteredData.forEach(row => {
-        if (infTotalColIndex !== -1) {
-            totalInflow += parseNumericalValue(row[infTotalColIndex]);
-        }
-        if (outTotalColIndex !== -1) {
-            totalOutflow += parseNumericalValue(row[outTotalColIndex]);
-        }
+    const staffColIndex = headers.indexOf('STAFF NAME');
+    const freshOldColIndex = headers.indexOf('FRESH/OLD');
+    const customerNameColIndex = headers.indexOf('CUSTOMER NAME');
+
+
+    const filteredDataForOverall = allData.filter(row => {
+        const rowStaff = row[staffColIndex];
+        const rowDate = row[headers.indexOf('DATE')];
+        let matchStaff = !selectedStaff || rowStaff === selectedStaff;
+        let matchMonth = !selectedMonth || (rowDate && `${rowDate.getFullYear()}-${(rowDate.getMonth() + 1).toString().padStart(2, '0')}` === selectedMonth);
+        return matchStaff && matchMonth;
     });
 
-    const totalNetGrowth = totalInflow - totalOutflow;
+    // Performance Summary
+    let totalInflow = 0;
+    let totalOutflow = 0;
+    let totalNetGrowth = 0;
+    const freshCustomerDetailsMap = new Map();
+    const customerData = new Map();
+
+    filteredDataForOverall.forEach(row => {
+        const inflow = getValueFromRow(row, headers, 'INF Total');
+        const outflow = getValueFromRow(row, headers, 'OUT Total');
+        const net = getValueFromRow(row, headers, 'Net');
+        const customerName = row[customerNameColIndex];
+
+        totalInflow += inflow;
+        totalOutflow += outflow;
+        totalNetGrowth += net;
+
+        if (customerName) {
+            if (!customerData.has(customerName)) {
+                customerData.set(customerName, {
+                    net: 0,
+                    transactions: 0
+                });
+            }
+            customerData.get(customerName).net += net;
+            customerData.get(customerName).transactions++;
+        }
+
+        if (isFreshCustomer(row[freshOldColIndex]) && customerName) {
+            freshCustomerDetailsMap.set(customerName, (freshCustomerDetailsMap.get(customerName) || 0) + inflow);
+        }
+    });
 
     totalInflowEl.textContent = formatIndianNumber(totalInflow);
     totalOutflowEl.textContent = formatIndianNumber(totalOutflow);
     totalNetGrowthEl.textContent = formatIndianNumber(totalNetGrowth);
 
-    // Calculate Monthly Breakup
-    const monthlyData = {}; // Key: YYYY-MM, Value: { inflow: X, outflow: Y, net: Z }
-    const dateColIndex = headers.indexOf('DATE');
+    freshCustomerListEl.innerHTML = '';
+    const sortedFreshCustomers = Array.from(freshCustomerDetailsMap.keys()).sort();
+    if (sortedFreshCustomers.length > 0) {
+        sortedFreshCustomers.forEach(customerName => {
+            const li = document.createElement('li');
+            li.textContent = `${customerName} (₹${formatIndianNumber(freshCustomerDetailsMap.get(customerName))})`;
+            freshCustomerListEl.appendChild(li);
+        });
+    } else {
+        freshCustomerListEl.innerHTML = '<li>No fresh customers found.</li>';
+    }
 
-    filteredData.forEach(row => {
-        const date = row[dateColIndex]; // This is already a Date object
-        if (!date) return; // Skip if date is null (already filtered out but safety check)
+    // Customer Loyalty & Retention
+    let negativeNetCustomers = 0;
+    let totalCustomers = 0;
+    const repeatCustomers = [];
 
+    customerData.forEach((data, customerName) => {
+        totalCustomers++;
+        if (data.net < 0) {
+            negativeNetCustomers++;
+        }
+        if (data.transactions > 1) {
+            repeatCustomers.push({ name: customerName, net: data.net });
+        }
+    });
+
+    const churnRate = totalCustomers > 0 ? (negativeNetCustomers / totalCustomers * 100).toFixed(2) : '0.00';
+    churnRateEl.textContent = `${churnRate}%`;
+
+    repeatBusinessListEl.innerHTML = '';
+    if (repeatCustomers.length > 0) {
+        repeatCustomers.sort((a, b) => b.net - a.net).forEach(customer => {
+            const li = document.createElement('li');
+            li.textContent = `${customer.name} (Net: ₹${formatIndianNumber(customer.net)})`;
+            repeatBusinessListEl.appendChild(li);
+        });
+    } else {
+        repeatBusinessListEl.innerHTML = '<li>No repeat customers found.</li>';
+    }
+
+
+    // Monthly Breakup
+    const monthlyData = {};
+    filteredDataForOverall.forEach(row => {
+        const date = row[headers.indexOf('DATE')];
+        if (!date) return;
         const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
 
         if (!monthlyData[yearMonth]) {
-            monthlyData[yearMonth] = { inflow: 0, outflow: 0, net: 0 };
+            monthlyData[yearMonth] = {
+                inflow: 0,
+                outflow: 0,
+                net: 0,
+                entries: []
+            };
         }
 
-        if (infTotalColIndex !== -1) {
-            monthlyData[yearMonth].inflow += parseNumericalValue(row[infTotalColIndex]);
-        }
-        if (outTotalColIndex !== -1) {
-            monthlyData[yearMonth].outflow += parseNumericalValue(row[outTotalColIndex]);
-        }
-        monthlyData[yearMonth].net = monthlyData[yearMonth].inflow - monthlyData[yearMonth].outflow;
+        monthlyData[yearMonth].inflow += getValueFromRow(row, headers, 'INF Total');
+        monthlyData[yearMonth].outflow += getValueFromRow(row, headers, 'OUT Total');
+        monthlyData[yearMonth].net += getValueFromRow(row, headers, 'Net');
+        monthlyData[yearMonth].entries.push(row);
     });
 
-    // Render Monthly Breakup Table
-    monthlyTableBody.innerHTML = ''; // Clear previous data
+    monthlyTableBody.innerHTML = '';
     const sortedMonths = Object.keys(monthlyData).sort();
     sortedMonths.forEach(monthKey => {
         const data = monthlyData[monthKey];
+        const monthName = new Date(monthKey + '-01').toLocaleString('en-IN', {
+            year: 'numeric',
+            month: 'long'
+        });
+
         const row = monthlyTableBody.insertRow();
-        const monthName = new Date(monthKey + '-01').toLocaleString('en-IN', { year: 'numeric', month: 'long' });
-        
         row.insertCell().textContent = monthName;
+
+        const inflowCell = row.insertCell();
+        inflowCell.textContent = formatIndianNumber(data.inflow);
+        inflowCell.classList.add('clickable');
+        inflowCell.addEventListener('click', () => displayDetailedEntries(data.entries, 'Inflow', monthName));
+
+        const outflowCell = row.insertCell();
+        outflowCell.textContent = formatIndianNumber(data.outflow);
+        outflowCell.classList.add('clickable');
+        outflowCell.addEventListener('click', () => displayDetailedEntries(data.entries, 'Outflow', monthName));
+
+        const netCell = row.insertCell();
+        netCell.textContent = formatIndianNumber(data.net);
+        netCell.classList.add('clickable');
+        netCell.addEventListener('click', () => displayDetailedEntries(data.entries, 'Net', monthName));
+    });
+
+    // NEW: Product/Company-Wise Breakdown Logic
+    const productBreakdownData = new Map();
+
+    filteredDataForOverall.forEach(row => {
+        headers.forEach((header, index) => {
+            const headerParts = header.split(' ');
+            if (headerParts.length >= 2) {
+                const company = headerParts[0];
+                const product = headerParts[1];
+                const type = headerParts[2];
+                const key = `${company} ${product}`;
+
+                if (type === 'INF' || type === 'OUT' || type === 'NET') {
+                    const value = parseNumericalValue(row[index]);
+                    if (!productBreakdownData.has(key)) {
+                        productBreakdownData.set(key, {
+                            company: company,
+                            product: product,
+                            inflow: 0,
+                            outflow: 0,
+                            net: 0
+                        });
+                    }
+                    const currentData = productBreakdownData.get(key);
+                    if (type === 'INF') {
+                        currentData.inflow += value;
+                    } else if (type === 'OUT') {
+                        currentData.outflow += value;
+                    } else if (type === 'NET') {
+                        currentData.net += value;
+                    }
+                }
+            }
+        });
+    });
+
+    productBreakdownTableBody.innerHTML = '';
+    const sortedProducts = Array.from(productBreakdownData.keys()).sort();
+    sortedProducts.forEach(key => {
+        const data = productBreakdownData.get(key);
+        const row = productBreakdownTableBody.insertRow();
+        row.insertCell().textContent = data.company;
+        row.insertCell().textContent = data.product;
         row.insertCell().textContent = formatIndianNumber(data.inflow);
         row.insertCell().textContent = formatIndianNumber(data.outflow);
         row.insertCell().textContent = formatIndianNumber(data.net);
     });
-    if (sortedMonths.length === 0) {
-        monthlyTableBody.innerHTML = '<tr><td colspan="4">No monthly data available for the selected filters.</td></tr>';
-    }
-}
 
-// --- Detailed Entries View ---
-function viewDetailedEntries() {
-    const filteredData = getFilteredData();
-
-    // Show the detailed entries container
-    detailedEntriesContainer.style.display = 'block';
-
-    // Populate detailed table headers
-    detailedTableHead.innerHTML = '';
-    headers.forEach(header => {
-        const th = document.createElement('th');
-        th.textContent = header;
-        detailedTableHead.appendChild(th);
+    // Calculate cumulative data
+    let cumulativeNet = 0;
+    const cumulativeData = sortedMonths.map(monthKey => {
+        cumulativeNet += monthlyData[monthKey].net;
+        return cumulativeNet;
     });
 
-    // Populate detailed table body
-    detailedTableBody.innerHTML = '';
-    if (filteredData.length === 0) {
-        detailedTableBody.innerHTML = '<tr><td colspan="' + headers.length + '">No entries found for the selected filters.</td></tr>';
-        return;
+    // Generate the charts
+    generateCumulativePerformanceChart(cumulativeData, sortedMonths);
+    generatePerformanceChart(monthlyData, sortedMonths);
+}
+
+function generatePerformanceChart(monthlyData, sortedMonths) {
+    if (myChart) {
+        myChart.destroy();
     }
 
-    filteredData.forEach(rowData => {
-        const tr = detailedTableBody.insertRow();
-        rowData.forEach((cellData, index) => {
-            const td = tr.insertCell();
-            let content = cellData;
-            
-            // Re-format Date objects to a display string if it's the DATE column
-            if (headers[index] === 'DATE' && cellData instanceof Date) {
-                content = cellData.toLocaleDateString('en-IN'); // e.g., 19/07/2025
-            }
-            // Apply Indian number formatting to relevant numerical columns
-            else {
-                // Ensure these header names exactly match the trimmed headers from CSV
-                const numericalHeaders = [
-                    'SML NCD INF', 'SML SD INF', 'SML GB INF', 'SML BDSL', 'VFL NCD INF', 'VFL SD INF', 'VFL GB INF',
-                    'SNL FD INF', 'LLP INF', 'INF Total', 'SNL FD INF.1', 'VFL NCD OUT', 'VFL BD OUT', 'SML PURCHASE',
-                    'SML NCD OUT', 'SML SD OUT', 'SML GB OUT', 'LLP OUT', 'OUT Total', 'Net'
-                ];
-                if (numericalHeaders.includes(headers[index])) { // No need to trim again here, as headers array is already trimmed
-                    const numValue = parseNumericalValue(content); // Use the new helper for consistent parsing
-                    if (!isNaN(numValue)) { // Only format if it's a valid number
-                        content = formatIndianNumber(numValue);
+    const labels = sortedMonths.map(monthKey => new Date(monthKey + '-01').toLocaleString('en-IN', {
+        month: 'short',
+        year: 'numeric'
+    }));
+    const inflowData = sortedMonths.map(monthKey => monthlyData[monthKey].inflow);
+    const outflowData = sortedMonths.map(monthKey => monthlyData[monthKey].outflow);
+    const netGrowthData = sortedMonths.map(monthKey => monthlyData[monthKey].net);
+
+    myChart = new Chart(performanceChartCanvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Inflow',
+                data: inflowData,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }, {
+                label: 'Outflow',
+                data: outflowData,
+                borderColor: 'rgb(255, 99, 132)',
+                tension: 0.1
+            }, {
+                label: 'Net Growth',
+                data: netGrowthData,
+                borderColor: 'rgb(54, 162, 235)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Amount (₹)'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += `₹${formatIndianNumber(context.parsed.y)}`;
+                            }
+                            return label;
+                        }
                     }
                 }
             }
-            td.textContent = content;
-        });
+        }
     });
 }
 
+function generateCumulativePerformanceChart(cumulativeData, sortedMonths) {
+    if (myCumulativeChart) {
+        myCumulativeChart.destroy();
+    }
+
+    const labels = sortedMonths.map(monthKey => new Date(monthKey + '-01').toLocaleString('en-IN', {
+        month: 'short',
+        year: 'numeric'
+    }));
+
+    myCumulativeChart = new Chart(cumulativePerformanceChartCanvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Cumulative Net Growth',
+                data: cumulativeData,
+                borderColor: 'rgb(153, 102, 255)',
+                tension: 0.1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cumulative Net Growth (₹)'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += `₹${formatIndianNumber(context.parsed.y)}`;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+function displayDetailedEntries(entries, type, monthName) {
+    reportContainer.classList.add('hidden');
+    detailedEntriesContainer.classList.remove('hidden');
+
+    detailedTitleEl.textContent = `${type} for ${monthName}`;
+    detailedTableBody.innerHTML = '';
+
+    entries.forEach(entry => {
+        const tr = detailedTableBody.insertRow();
+        tr.insertCell().textContent = entry[headers.indexOf('DATE')].toLocaleDateString('en-IN');
+        tr.insertCell().textContent = formatIndianNumber(getValueFromRow(entry, headers, 'INF Total'));
+        tr.insertCell().textContent = formatIndianNumber(getValueFromRow(entry, headers, 'OUT Total'));
+        tr.insertCell().textContent = formatIndianNumber(getValueFromRow(entry, headers, 'Net'));
+
+        const customerNameCell = tr.insertCell();
+        customerNameCell.classList.add('customer-name-column');
+        customerNameCell.classList.add('hidden');
+        customerNameCell.textContent = entry[headers.indexOf('CUSTOMER NAME')];
+    });
+
+    if (showCustomerNameCheckbox.checked) {
+        document.querySelectorAll('.customer-name-column').forEach(cell => cell.classList.remove('hidden'));
+    }
+}
+
+function showMainReport() {
+    detailedEntriesContainer.classList.add('hidden');
+    reportContainer.classList.remove('hidden');
+}
+
+
 // --- Event Listeners ---
 companySelect.addEventListener('change', () => {
-    filterStaffList(); // When company changes, re-filter staff list and then generate report
+    filterStaffList();
+    generateReport();
 });
 
-staffSelect.addEventListener('change', generateReport);
-staffSearchInput.addEventListener('input', filterStaffList); // Listen for input on search box
-monthSelect.addEventListener('change', generateReport);
-viewEntriesBtn.addEventListener('click', viewDetailedEntries);
+staffSearchInput.addEventListener('input', () => {
+    filterStaffList();
+    staffSelect.style.display = staffSearchInput.value ? 'block' : 'none';
+});
 
-// --- Initialize the report when the page loads ---
+staffSearchInput.addEventListener('focus', () => {
+    staffSelect.style.display = 'block';
+});
+
+staffSelect.addEventListener('change', () => {
+    staffSearchInput.value = staffSelect.value;
+    staffSelect.style.display = 'none';
+    generateReport();
+});
+
+monthSelect.addEventListener('change', generateReport);
+backToReportBtn.addEventListener('click', showMainReport);
+
+showCustomerNameCheckbox.addEventListener('change', (e) => {
+    document.querySelectorAll('.customer-name-column').forEach(cell => {
+        if (e.target.checked) {
+            cell.classList.remove('hidden');
+        } else {
+            cell.classList.add('hidden');
+        }
+    });
+});
+
 document.addEventListener('DOMContentLoaded', init);
