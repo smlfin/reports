@@ -24,6 +24,8 @@ const dataEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth() +
 let companySearchInput;
 let companySelect;
 let monthSelect;
+let showResignedCheckbox;
+let showDirectCheckbox;
 let reportSection;
 let gainersTableBody;
 let losersTableBody;
@@ -118,6 +120,8 @@ async function init() {
         companySearchInput = document.getElementById('company-search');
         companySelect = document.getElementById('company-select');
         monthSelect = document.getElementById('month-select');
+        showResignedCheckbox = document.getElementById('show-resigned-staff');
+        showDirectCheckbox = document.getElementById('show-direct-staff');
         reportSection = document.getElementById('gainers-losers-report-section');
         gainersTableBody = document.querySelector('#gainers-table tbody');
         losersTableBody = document.querySelector('#losers-table tbody');
@@ -130,6 +134,9 @@ async function init() {
         // Add event listeners inside init()
         companySelect.addEventListener('change', generateReport);
         monthSelect.addEventListener('change', generateReport);
+        showResignedCheckbox.addEventListener('change', generateReport);
+        showDirectCheckbox.addEventListener('change', generateReport);
+
         companySearchInput.addEventListener('input', () => {
             const searchText = companySearchInput.value.toLowerCase();
             const filteredCompanies = allCompanyNames.filter(company => 
@@ -220,19 +227,43 @@ function populateCompanySelect(companyList) {
 function getFilteredData() {
     const selectedCompany = companySelect.value;
     const selectedMonth = monthSelect.value;
+    const showResigned = showResignedCheckbox.checked;
+    const showDirect = showDirectCheckbox.checked;
+
     const companyColIndex = headers.indexOf('COMPANY NAME');
     const dateColIndex = headers.indexOf('DATE');
+    const statusColIndex = headers.indexOf('STATUS');
 
     return allData.filter(row => {
+        // Filter by company
         if (selectedCompany && (companyColIndex === -1 || row[companyColIndex] !== selectedCompany)) {
             return false;
         }
+        
+        // Filter by month
         if (selectedMonth && dateColIndex !== -1) {
             const rowDate = row[dateColIndex];
             const rowMonth = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
             if (rowMonth !== selectedMonth) return false;
         }
-        return true;
+
+        // Filter by staff status (Corrected logic)
+        const staffStatus = statusColIndex !== -1 ? String(row[statusColIndex]).toUpperCase() : '';
+        const isResigned = staffStatus === 'RESIGNED';
+        const isDirect = staffStatus === 'DIRECT';
+        const isOther = !isResigned && !isDirect;
+
+        if (isResigned && showResigned) {
+            return true;
+        }
+        if (isDirect && showDirect) {
+            return true;
+        }
+        if (isOther && !showResigned && !showDirect) {
+            return true;
+        }
+
+        return false;
     });
 }
 
@@ -240,11 +271,12 @@ function getFilteredData() {
 function generateReport() {
     const filteredData = getFilteredData();
     const employeeColIndex = headers.indexOf('STAFF NAME');
-    const netColIndex = headers.indexOf('Net');
+    const infTotalColIndex = headers.indexOf('INF Total');
+    const outTotalColIndex = headers.indexOf('OUT Total');
     const statusColIndex = headers.indexOf('STATUS');
     const companyColIndex = headers.indexOf('COMPANY NAME');
 
-    if (filteredData.length === 0 || employeeColIndex === -1 || netColIndex === -1 || companyColIndex === -1) {
+    if (filteredData.length === 0 || employeeColIndex === -1 || infTotalColIndex === -1 || outTotalColIndex === -1 || companyColIndex === -1) {
         reportSection.style.display = 'none';
         allEmployeesReportSection.style.display = 'none';
         noReportDataMessage.style.display = 'block';
@@ -259,17 +291,22 @@ function generateReport() {
 
     filteredData.forEach(row => {
         const employeeName = row[employeeColIndex];
-        const netValue = parseNumericalValue(row[netColIndex]);
+        const inflowValue = parseNumericalValue(row[infTotalColIndex]);
+        const outflowValue = parseNumericalValue(row[outTotalColIndex]);
+        const netValue = inflowValue - outflowValue;
         const status = statusColIndex !== -1 ? String(row[statusColIndex]).toUpperCase() : '';
         const companyName = row[companyColIndex];
 
         if (employeeName) {
             if (!employeeNetPerformance[employeeName]) {
-                employeeNetPerformance[employeeName] = { net: 0, isResigned: false, company: companyName };
+                employeeNetPerformance[employeeName] = { net: 0, isResigned: false, isDirect: false, company: companyName };
             }
             employeeNetPerformance[employeeName].net += netValue;
             if (status === 'RESIGNED') {
                 employeeNetPerformance[employeeName].isResigned = true;
+            }
+            if (status === 'DIRECT') {
+                employeeNetPerformance[employeeName].isDirect = true;
             }
         }
     });
@@ -278,6 +315,7 @@ function generateReport() {
         name: name,
         net: employeeNetPerformance[name].net,
         isResigned: employeeNetPerformance[name].isResigned,
+        isDirect: employeeNetPerformance[name].isDirect,
         company: employeeNetPerformance[name].company
     }));
 
@@ -315,6 +353,9 @@ function renderTable(employeeList, tableBody, showRank) {
         if (employee.isResigned) {
             tr.classList.add('resigned-employee');
         }
+        if (employee.isDirect) {
+            tr.classList.add('direct-employee');
+        }
         
         let rankCell = showRank ? `<td>${employee.rank}</td>` : '';
         let companyShortName = companyShortNames[employee.company] || employee.company;
@@ -336,6 +377,9 @@ function renderFullTable(employeeList, tableBody) {
         const tr = document.createElement('tr');
         if (employee.isResigned) {
             tr.classList.add('resigned-employee');
+        }
+        if (employee.isDirect) {
+            tr.classList.add('direct-employee');
         }
         let companyShortName = companyShortNames[employee.company] || employee.company;
         tr.innerHTML = `
