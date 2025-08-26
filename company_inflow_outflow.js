@@ -427,3 +427,4 @@ viewDetailedEntriesBtn.addEventListener('click', viewDetailedEntries);
 // --- Initialize the report when the page loads ---
 
 document.addEventListener('DOMContentLoaded', init);
+
