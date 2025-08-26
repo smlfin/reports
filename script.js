@@ -1,4 +1,4 @@
-const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1OOdGnJhw1k6U15Aybn_2JWex_qTShP6w7CXm0_auXnc8vFnvlabPZjK3lsjqkHgn6NgeKKPyu9qW/pub?gid=1720680457&single=true&output=csv';
+const csvUrl = 'https://docs.google.com/spreadsheets/d/1jYlHO8x40Ygbn05DL3tMZ5wHuoZgPjk2fbtEGoDXzko/export?format=csv&gid=1720680457';
 const tableContainer = document.getElementById('table-container');
 
 async function fetchCsvData() {
@@ -125,4 +125,5 @@ function parseCsv(csvText) {
 }
 
 // Call the function to fetch data when the page loads
+
 fetchCsvData();
