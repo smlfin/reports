@@ -1,7 +1,7 @@
 // fresh_old_report.js
 
 // --- Configuration ---
-const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1OOdGnJhw1k6U15Aybn_2JWex_qTShP6w7CXm0_auXnc8vFnvlabPZjK3lsjqkHgn6NgeKKPyu9qW/pub?gid=1720680457&single=true&output=csv';
+const csvUrl = 'https://docs.google.com/spreadsheets/d/1jYlHO8x40Ygbn05DL3tMZ5wHuoZgPjk2fbtEGoDXzko/export?format=csv&gid=1720680457';
 const FRESH_STAFF_NET_THRESHOLD = 25000;
 
 // --- Global Data Storage ---
@@ -656,4 +656,5 @@ window.addEventListener('click', (event) => {
 
 // --- Initialize the report when the page loads ---
 document.addEventListener('DOMContentLoaded', init);
+
 
