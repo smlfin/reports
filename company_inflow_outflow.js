@@ -123,14 +123,40 @@ function formatIndianNumber(num) {
     return sign + otherNumbers + ',' + lastThree + decimalPart;
 }
 
-// Helper function to parse a numerical value from a string, handling empty/null and commas
+// *** UPDATED: Robust Helper function to parse a numerical value from a string ***
 function parseNumericalValue(valueString) {
     if (valueString === null || valueString === undefined || valueString === '') {
         return 0;
     }
-    const cleanedValue = String(valueString).replace(/,/g, ''); // Ensure it's a string before replace
+    
+    let cleanedValue = String(valueString).trim();
+    
+    // 1. Handle common accounting format for negatives: (1,000) or 1,000-
+    let isNegative = false;
+    if (cleanedValue.startsWith('(') && cleanedValue.endsWith(')')) {
+        cleanedValue = cleanedValue.slice(1, -1);
+        isNegative = true;
+    } else if (cleanedValue.endsWith('-')) {
+        cleanedValue = cleanedValue.slice(0, -1);
+        isNegative = true;
+    }
+
+    // 2. Normalize separators: Remove commas used for thousands grouping.
+    // If the value contains more than one comma or if a comma is followed by 3 digits
+    // and then another comma (e.g., 1,000,000), it's a thousand separator.
+    cleanedValue = cleanedValue.replace(/,/g, '');
+
+    // 3. Handle decimal comma (e.g., 1000,50 -> 1000.50) - assuming it's the LAST comma
+    // This is more conservative and assumes standard comma thousand separators are removed first.
+    // cleanedValue = cleanedValue.replace(/,(\d+)$/, '.$1'); 
+
     const parsedValue = parseFloat(cleanedValue);
-    return isNaN(parsedValue) ? 0 : parsedValue;
+    
+    if (isNaN(parsedValue)) {
+        return 0;
+    }
+
+    return isNegative ? -parsedValue : parsedValue;
 }
 
 // --- Main Data Fetching and Initialization ---
@@ -195,7 +221,7 @@ function populateFilters() {
     
     let currentMonthIterator = new Date(dataStartDate.getFullYear(), dataStartDate.getMonth(), 1); // Start from April 2025
     
-    // *** FIX 2 REVISION: Iterate up to the START of the NEXT month (e.g., November 1, 2025) ***
+    // Iterate up to the START of the NEXT month (e.g., November 1, 2025)
     const startOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
     
     while (currentMonthIterator < startOfNextMonth) { 
