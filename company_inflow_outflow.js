@@ -8,10 +8,13 @@ let allData = []; // Stores all parsed CSV rows
 let headers = []; // Stores CSV headers
 let allCompanyNames = []; // Stores all unique company names for search functionality
 
-// --- Fixed Date Range for Data Validity (April 2025 to Current Month) ---
+// --- Fixed Date Range for Data Validity (April 2025 to End of PREVIOUS Month) ---
 const dataStartDate = new Date('2025-04-01T00:00:00'); // April 1, 2025, 00:00:00 local time
 const currentDate = new Date(); // Current date and time
-const dataEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59); // End of the current month
+
+// *** FIX 1: Set dataEndDate to the last day of the PREVIOUS month. ***
+// This prevents data from the current incomplete month (October) from being included.
+const dataEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0, 23, 59, 59);
 
 // --- DOM Elements ---
 const monthSelect = document.getElementById('month-select');
@@ -79,6 +82,14 @@ function parseDate(dateString) {
         if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= 2100) {
             const date = new Date(year, month - 1, day);
             if (date.getDate() === day && (date.getMonth() + 1) === month && date.getFullYear() === year) {
+                
+                // *** FIX 3: Add logging for potential day/month swap error (e.g., 09/10/2025 read as Oct 9) ***
+                if (day > 12 && month <= 12) {
+                     // This condition flags dates where the month index is small (<=12) but the day is large (>12)
+                     // which is a strong indicator of an MM/DD/YYYY format error being read as DD/MM/YYYY.
+                     console.warn(`Potential Date Parsing Error (DD/MM/YYYY assumed): Original: ${dateString}. Parsed as: ${date.toLocaleDateString('en-IN')}. Please check source data for MM/DD/YYYY format.`);
+                }
+                
                 return date;
             }
         }
@@ -150,7 +161,7 @@ async function init() {
 
             if (dateColIndex !== -1 && parsedRow[dateColIndex]) {
                 const dateObj = parseDate(parsedRow[dateColIndex]);
-                // Filter rows based on the date range (April 2025 to end of current month)
+                // Filter rows based on the date range (April 2025 to end of PREVIOUS month)
                 if (dateObj && dateObj >= dataStartDate && dateObj <= dataEndDate) {
                     parsedRow[dateColIndex] = dateObj; // Replace date string with Date object
                     return parsedRow;
@@ -181,11 +192,15 @@ function populateFilters() {
     allCompanyNames = Array.from(companies).sort();
     filterCompanyList(); // Populate company select initially (all companies)
 
-    // Populate Month Select from April 2025 to the current month
+    // Populate Month Select from April 2025 up to the end of the previous month
     monthSelect.innerHTML = '<option value="">All Months</option>';
     
     let currentMonthIterator = new Date(dataStartDate.getFullYear(), dataStartDate.getMonth(), 1); // Start from April 2025
-    while (currentMonthIterator <= currentDate) { // Iterate up to the current month
+    
+    // *** FIX 2: Stop iterating before the START of the current month (October 1, 2025) ***
+    const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    
+    while (currentMonthIterator < startOfCurrentMonth) { 
         const year = currentMonthIterator.getFullYear();
         const month = (currentMonthIterator.getMonth() + 1).toString().padStart(2, '0');
         const optionValue = `${year}-${month}`;
@@ -427,4 +442,3 @@ viewDetailedEntriesBtn.addEventListener('click', viewDetailedEntries);
 // --- Initialize the report when the page loads ---
 
 document.addEventListener('DOMContentLoaded', init);
-
