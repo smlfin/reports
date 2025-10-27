@@ -37,6 +37,9 @@ const employeeDrilldownTitle = document.getElementById('employee-drilldown-title
 const employeeDrilldownTableBody = document.querySelector('#employee-drilldown-table tbody');
 const noEmployeeDrilldownDataMessage = document.getElementById('no-employee-drilldown-data-message');
 
+// NEW: DOM element for the overall staff participation count
+const totalStaffParticipationCountSpan = document.getElementById('total-staff-participation-count');
+
 
 // --- Utility Functions ---
 
@@ -293,15 +296,18 @@ function generateReport() {
     const infTotalColIndex = headers.indexOf('INF Total');
     const outTotalColIndex = headers.indexOf('OUT Total');
 
+    // Total set of unique staff for the entire current filtered view
+    const overallUniqueStaff = new Set(); 
+
     // Structure to hold month-company-employee data for summary table
-    // { 'YYYY-MM': { 'CompanyA': { totalUnique: number, repeating: Set<staff_name>, new: Set<staff_name>, inflow: number, outflow: number, net: number } } }
+    // { 'YYYY-MM': { 'CompanyA': { ... } } }
     const monthlyCompanyParticipationSummary = {};
     
     // Tracker for counting unique month appearances for each staff-company pair within filteredData
     // Map: CompanyName -> Map: StaffName -> Set<MonthKey>
     const staffCompanyMonthlyPresence = new Map();
 
-    // First pass: Aggregate data and track monthly presence for each staff-company pair within the filtered data
+    // First pass: Aggregate data, track monthly presence, and calculate overall unique staff
     filteredData.forEach(row => {
         const monthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
         const companyName = row[companyColIndex];
@@ -311,15 +317,22 @@ function generateReport() {
 
         if (!companyName || !staffName) return;
 
-        // Populate the summary structure
+        // --- Participation Definition: Only count if Inflow > 0 ---
+        if (inflow <= 0) return;
+        // --------------------------------------------------------
+
+        // 1. Calculate Overall Unique Staff for the ENTIRE filtered view (e.g., the selected month)
+        overallUniqueStaff.add(staffName);
+
+        // 2. Populate the summary structure
         if (!monthlyCompanyParticipationSummary[monthKey]) {
             monthlyCompanyParticipationSummary[monthKey] = {};
         }
         if (!monthlyCompanyParticipationSummary[monthKey][companyName]) {
             monthlyCompanyParticipationSummary[monthKey][companyName] = {
                 uniqueEmployees: new Set(),
-                repeatingEmployees: new Set(), // These will be filled in the second pass
-                newEmployees: new Set(),       // These will be filled in the second pass
+                repeatingEmployees: new Set(), 
+                newEmployees: new Set(),       
                 totalInflow: 0,
                 totalOutflow: 0,
                 totalNet: 0
@@ -327,12 +340,12 @@ function generateReport() {
         }
 
         const currentSummary = monthlyCompanyParticipationSummary[monthKey][companyName];
-        currentSummary.uniqueEmployees.add(staffName); // Add to unique employees for this month-company
+        currentSummary.uniqueEmployees.add(staffName); 
         currentSummary.totalInflow += inflow;
         currentSummary.totalOutflow += outflow;
         currentSummary.totalNet += (inflow - outflow);
 
-        // Populate staffCompanyMonthlyPresence tracker
+        // 3. Populate staffCompanyMonthlyPresence tracker (used for New/Repeating logic across all filtered data)
         if (!staffCompanyMonthlyPresence.has(companyName)) {
             staffCompanyMonthlyPresence.set(companyName, new Map());
         }
@@ -342,23 +355,22 @@ function generateReport() {
         staffCompanyMonthlyPresence.get(companyName).get(staffName).add(monthKey);
     });
 
-    // Second pass: Determine "New" vs "Repeating" based on staffCompanyMonthlyPresence
+    // 4. Update the Overall Total Span (THE NEW REQUIREMENT)
+    totalStaffParticipationCountSpan.textContent = overallUniqueStaff.size;
+    
+    // 5. Second pass: Determine "New" vs "Repeating"
     Object.keys(monthlyCompanyParticipationSummary).forEach(monthKey => {
         Object.keys(monthlyCompanyParticipationSummary[monthKey]).forEach(companyName => {
             const summary = monthlyCompanyParticipationSummary[monthKey][companyName];
             
-            // Iterate over all unique employees identified for this month-company
             summary.uniqueEmployees.forEach(staffName => {
                 const monthsParticipated = staffCompanyMonthlyPresence.get(companyName)?.get(staffName);
                 if (monthsParticipated) {
                     // An employee is "Repeating" if they have participated in more than one month
                     // within the filtered data for this specific company.
-                    // If they have only appeared in *this* month for *this company* within the filtered data, they are "New".
                     if (monthsParticipated.size > 1) {
                         summary.repeatingEmployees.add(staffName);
                     } else if (monthsParticipated.size === 1 && monthsParticipated.has(monthKey)) {
-                        // This ensures that if an employee only appears once (in this month) within the entire filtered dataset,
-                        // they are considered "New".
                         summary.newEmployees.add(staffName);
                     }
                 }
@@ -366,6 +378,7 @@ function generateReport() {
         });
     });
 
+    // 6. Render the Summary Table
     renderParticipationSummaryTable(monthlyCompanyParticipationSummary);
 
     // Hide detailed entries if they were open from a previous view
@@ -436,9 +449,10 @@ function renderParticipationSummaryTable(monthlyCompanyParticipationSummary) {
 
 // --- Detailed Entries ---
 function viewDetailedEntries() {
-    const filteredData = getFilteredData(); // This is already filtered by current selections
-    detailedTableHead.innerHTML = ''; // Clear previous headers
-    detailedTableBody.innerHTML = ''; // Clear previous data
+    // Note: getFilteredData() already ensures only the selected month/company/staff data is used.
+    const filteredData = getFilteredData(); 
+    detailedTableHead.innerHTML = ''; 
+    detailedTableBody.innerHTML = ''; 
 
     if (filteredData.length === 0) {
         detailedEntriesContainer.style.display = 'block';
@@ -447,17 +461,25 @@ function viewDetailedEntries() {
     } else {
         noDetailedDataMessage.style.display = 'none';
     }
-
+    
+    // ... (rest of the viewDetailedEntries function is unchanged and correctly applies month filtering)
+    
     const staffNameColIndex = headers.indexOf('STAFF NAME');
     const companyColIndex = headers.indexOf('COMPANY NAME');
     const dateColIndex = headers.indexOf('DATE');
-    const monthKeyColIndex = headers.indexOf('MONTH_KEY_INTERNAL'); // Internal column for month key
+    const infTotalColIndex = headers.indexOf('INF Total'); // Index needed for new filtering
 
     // Create a temporary structure to track monthly participation for each staff-company pair within *this filtered data*
     const staffCompanyMonthlyPresenceForDetailed = new Map(); // Map: CompanyName -> Map: StaffName -> Set<MonthKey>
 
     // Populate the tracker
     filteredData.forEach(row => {
+        const inflow = parseNumericalValue(row[infTotalColIndex]);
+
+        // --- NEW LOGIC: Only count participation if Inflow > 0 ---
+        if (inflow <= 0) return; 
+        // --------------------------------------------------------
+
         const monthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
         const companyName = row[companyColIndex];
         const staffName = row[staffNameColIndex];
@@ -486,6 +508,12 @@ function viewDetailedEntries() {
     filteredData.sort((a, b) => a[dateColIndex] - b[dateColIndex]);
 
     filteredData.forEach(rowData => {
+        const inflow = parseNumericalValue(rowData[infTotalColIndex]);
+
+        // --- NEW LOGIC: Only render rows with Inflow > 0 ---
+        if (inflow <= 0) return;
+        // ----------------------------------------------------
+
         const tr = document.createElement('tr');
         headers.forEach((header, index) => {
             const td = document.createElement('td');
@@ -568,17 +596,24 @@ function showEmployeeDrilldownModal(companyName, monthKey, type, employeeSet) {
     Array.from(employeeSet).sort().forEach(staffMember => { // Iterate only over the relevant employee set
         drilldownData[staffMember] = {}; // Initialize for each relevant staff member
         
-        // Collect all entries for this specific staff member across ALL months for the selected company
-        // This should use `allData` to show full participation history for the staff in that company
-        allData.filter(row => 
-            row[staffNameColIndex] === staffMember && 
-            row[companyColIndex] === companyName
-        ).sort((a, b) => a[dateColIndex] - b[dateColIndex]) // Sort by date for proper monthly display
-        .forEach(row => {
+        // Collect all entries for this specific staff member and company that fall in the selected month
+        allData.filter(row => {
             const rowMonthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
+            return row[staffNameColIndex] === staffMember && 
+                   row[companyColIndex] === companyName &&
+                   rowMonthKey === monthKey; // <-- KEY CHANGE: Filter by the clicked monthKey
+        })
+        .forEach(row => {
             const inflow = parseNumericalValue(row[infTotalColIndex]);
+
+            // --- Enforce Participation: Only include transactions with Inflow > 0 in drilldown ---
+            if (inflow <= 0) return;
+            // ---------------------------------------------------------------------------------
+
+            const rowMonthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
             const outflow = parseNumericalValue(row[outTotalColIndex]);
 
+            // Since we filtered by monthKey, this object will only have one key, but we aggregate just in case
             if (!drilldownData[staffMember][rowMonthKey]) {
                 drilldownData[staffMember][rowMonthKey] = { inflow: 0, outflow: 0, net: 0 };
             }
@@ -593,20 +628,20 @@ function showEmployeeDrilldownModal(companyName, monthKey, type, employeeSet) {
         if (Object.keys(drilldownData[staffMember]).length > 0) {
             hasData = true;
             const staffRow = employeeDrilldownTableBody.insertRow();
-            staffRow.classList.add('drilldown-staff-row'); // Add class for styling if needed
+            staffRow.classList.add('drilldown-staff-row'); 
 
             // Staff Name Cell
             const staffNameCell = staffRow.insertCell();
             staffNameCell.textContent = staffMember;
-            staffNameCell.classList.add('staff-name-header'); // Class for styling
-            // No rowSpan needed here, as we're nesting a table for months
+            staffNameCell.classList.add('staff-name-header'); 
 
             // Monthly Breakdown Cell (contains a nested table)
             const monthlyBreakdownCell = staffRow.insertCell();
-            monthlyBreakdownCell.colSpan = 3; // Span across month, inflow, outflow, net columns in the main table
+            // Since we are only showing one month, colSpan can be smaller but keeping it 3 for table structure
+            monthlyBreakdownCell.colSpan = 3; 
 
             const nestedTable = document.createElement('table');
-            nestedTable.classList.add('nested-monthly-breakdown'); // Class for styling
+            nestedTable.classList.add('nested-monthly-breakdown'); 
             nestedTable.innerHTML = `
                 <thead>
                     <tr>
@@ -621,6 +656,7 @@ function showEmployeeDrilldownModal(companyName, monthKey, type, employeeSet) {
             `;
             const nestedTbody = nestedTable.querySelector('tbody');
 
+            // We only show the data for the clicked month, which is the only key in the drilldownData for this staff
             Object.keys(drilldownData[staffMember]).sort().forEach(month => {
                 const monthData = drilldownData[staffMember][month];
                 const monthRow = nestedTbody.insertRow();
@@ -634,8 +670,10 @@ function showEmployeeDrilldownModal(companyName, monthKey, type, employeeSet) {
     }
 
     if (!hasData) {
+        // This case should now only happen if an employee somehow had a zero/negative inflow in a transaction
+        // that was incorrectly categorized as participating, which the filter above prevents.
         noEmployeeDrilldownDataMessage.style.display = 'block';
-        noEmployeeDrilldownDataMessage.textContent = `No ${type} employee participation data found for ${companyName} in ${new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' })}.`;
+        noEmployeeDrilldownDataMessage.textContent = `No valid (Inflow > 0) participation data found for ${type} employee(s) in ${new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' })}.`;
     }
 }
 
@@ -650,11 +688,6 @@ companySearchInput.addEventListener('input', () => {
         company.toLowerCase().includes(searchText)
     );
     populateCompanySelect(filteredCompanies);
-    // Do not call generateReport here directly. Let the change event on companySelect handle it.
-    // If the search filters down to a single company and user expects auto-select,
-    // you might add `companySelect.value = filteredCompanies.length === 1 ? filteredCompanies[0] : '';`
-    // but then a `change` event on companySelect should be triggered.
-    // For now, let's keep it simple: user selects from filtered list.
 });
 staffSearchInput.addEventListener('input', () => {
     const searchText = staffSearchInput.value.toLowerCase();
@@ -662,7 +695,6 @@ staffSearchInput.addEventListener('input', () => {
         staff.toLowerCase().includes(searchText)
     );
     populateStaffSelect(filteredStaff);
-    // Same as companySearchInput, avoid direct generateReport.
 });
 viewDetailedBtn.addEventListener('click', viewDetailedEntries);
 
