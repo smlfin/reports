@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch Ranker Report</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="branch_ranker_report.css">
+</head>
+<body>
+    <nav>
+        <ul class="main-menu">
+            <li><a href="index.html">Home</a></li>
+            <li class="has-submenu">
+                <a href="#">Company Reports</a>
+                <ul class="submenu">
+                    <li><a href="company_inflow_outflow.html">Company-wise Inflow/Outflow Report</a></li>
+                    <li><a href="company_report_branch_performance.html">Branch Performance Report</a></li>
+                    <li><a href="branch_ranker_report.html">Branch Ranker Report</a></li>
+                    <li><a href="company_ccw.html">Company & Channel Wise (CCW) Report</a></li>
+                    <li><a href="company_target_achievement.html">Company Target vs. Achievement</a></li>
+<li><a href="lastfin.html">Last Financial Year</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Staff Reports</a>
+                <ul class="submenu">
+                    <li><a href="staff_report.html">Individual Staff Drilldown</a></li>
+                    <li><a href="resigned_staff_report.html">Resigned Staff Analysis Report</a></li>
+                    <li><a href="employee_participation_report.html">Employee Participation Report</a></li>
+                    <li><a href="gainers_losers_report.html">Gainers & Losers</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Other Reports</a>
+                <ul class="submenu">
+                    <li><a href="fresh_old_report.html">Fresh/Old Customer Report</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="report-container">
+        <h1>Branch Ranker Report</h1>
+
+        <div class="report-controls">
+            <div class="filter-group">
+                <label for="company-search">Search Company:</label>
+                <input type="text" id="company-search" placeholder="Type to filter companies">
+            </div>
+            <div class="filter-group">
+                <label for="company-select">Select Company:</label>
+                <select id="company-select">
+                    <option value="all">All Companies</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="month-select">Select Month:</label>
+                <select id="month-select"></select>
+            </div>
+            <div class="filter-group">
+                <label>Filter by Date Range:</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="date" id="start-date" title="Start Date">
+                    <input type="date" id="end-date" title="End Date">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label for="ranking-type-select">Select Ranking Type:</label>
+                <select id="ranking-type-select">
+                    <option value="all">All Branches</option>
+                    <option value="top5">Top 5 Net Performers</option>
+                    <option value="bottom5">Bottom 5 Net Performers</option>
+                    <option value="growth">Net Growth Branches</option>
+                    <option value="degrowth">Net Degrowth Branches</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="no-company-selected-message" class="info-message" style="display: none;">
+            Please select a company to view the branch ranking.
+        </div>
+
+        <div class="report-section" id="branch-ranker-summary-section">
+            <h2>Branch Performance Ranking</h2>
+            <div class="table-responsive">
+                <table id="branch-ranker-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Branch</th>
+                            <th>Total Inflow</th>
+                            <th>Total Outflow</th>
+                            <th>Net</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <p id="no-ranker-data-message" class="info-message" style="display: none;">No data available for the selected filters.</p>
+        </div>
+    </div>
+
+    <script src="branch_ranker_report.js"></script>
+</body>
+</html>
