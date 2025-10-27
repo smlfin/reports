@@ -40,7 +40,7 @@
     </nav>
 
     <div class="report-container">
-        <h1>Employee Participation Report (Company-wise, Monthly)</h1>
+        <h1>Employee Participation Report (Based on Inflow > 0)</h1>
 
         <div class="report-controls">
             <div class="filter-group">
@@ -66,8 +66,16 @@
             <button id="view-detailed-btn">View Detailed Entries</button>
         </div>
 
+        <div class="overall-summary">
+            <h2>Overall Participation Summary</h2>
+            <div class="summary-box">
+                <strong>Total Unique Staff Participating:</strong>
+                <span id="total-staff-participation-count">0</span>
+            </div>
+        </div>
+
         <div class="report-section" id="monthly-company-summary-section">
-            <h2>Monthly Employee Participation Summary</h2>
+            <h2>Company-wise Participation Split</h2>
             <div class="table-responsive">
                 <table id="participation-summary-table">
                     <thead>
@@ -90,7 +98,7 @@
         </div>
 
         <div class="report-section" id="detailed-entries-container" style="display: none;">
-            <h2>Detailed Entries</h2>
+            <h2>Detailed Entries (For Selected Filters)</h2>
             <div class="table-responsive">
                 <table id="detailed-table">
                     <thead>
