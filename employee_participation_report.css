@@ -35,183 +35,183 @@ h1 {
 .filter-group {
     display: flex;
     flex-direction: column;
-    flex: 1; /* Allow filter groups to grow */
-    min-width: 200px; /* Minimum width for responsiveness */
+    min-width: 180px;
 }
 
-.report-controls label {
+.filter-group label {
+    margin-bottom: 5px;
     font-weight: 600;
-    margin-bottom: 8px;
-    color: #495057; /* Slightly darker text for labels */
-    font-size: 0.95em;
+    color: #34495e;
+    font-size: 0.9em;
 }
 
-.report-controls select,
-.report-controls input[type="text"] {
-    padding: 12px 15px;
+.filter-group input,
+.filter-group select {
+    padding: 10px;
     border: 1px solid #ced4da;
-    border-radius: 8px;
+    border-radius: 6px;
+    background-color: white;
     font-size: 1em;
-    color: #495057;
-    background-color: #fff;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.report-controls select:focus,
-.report-controls input[type="text"]:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    outline: none;
 }
 
 .report-controls button {
-    padding: 12px 25px;
+    padding: 10px 15px;
     background-color: #007bff;
     color: white;
     border: none;
-    border-radius: 8px;
-    font-size: 1.05em;
+    border-radius: 6px;
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    align-self: flex-end; /* Align button to the bottom within its flex container */
-    margin-top: auto; /* Push button to the bottom if filter groups vary in height */
+    font-size: 1em;
+    font-weight: 600;
+    transition: background-color 0.3s;
 }
 
 .report-controls button:hover {
     background-color: #0056b3;
-    transform: translateY(-2px);
 }
 
-.report-controls button:active {
-    transform: translateY(0);
+
+/* --- NEW: Overall Summary Styling (For the Total Unique Staff Count) --- */
+.overall-summary {
+    margin-bottom: 30px;
+    text-align: center;
 }
 
-/* Report Sections (Tables) */
+.overall-summary h2 {
+    font-size: 1.5em;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    border-bottom: 1px dashed #ccc;
+    display: inline-block;
+    padding-bottom: 5px;
+}
+
+.summary-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background-color: #e6f7ff; /* Light blue background */
+    border: 2px solid #007bff;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.summary-box strong {
+    font-size: 1.1em;
+    color: #34495e;
+    margin-right: 15px;
+}
+
+#total-staff-participation-count {
+    font-size: 2.5em; /* Large, prominent number */
+    font-weight: 900;
+    color: #28a745; /* Green color for the count */
+}
+/* --- END NEW SUMMARY STYLING --- */
+
+
+/* Report Section and Table Styling */
 .report-section {
-    padding: 25px;
     margin-top: 30px;
+    padding: 15px;
     background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .report-section h2 {
     color: #2c3e50;
-    margin-top: 0;
-    margin-bottom: 20px;
-    text-align: center;
-    font-size: 2em;
-    font-weight: 600;
+    font-size: 1.5em;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
     border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 10px;
 }
 
 .table-responsive {
-    overflow-x: auto; /* Enables horizontal scrolling for tables on small screens */
-    margin-top: 20px;
+    overflow-x: auto;
 }
 
-.report-section table {
+#participation-summary-table, #detailed-table, #employee-drilldown-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 15px;
-    background-color: #fff;
-    min-width: 600px; /* Ensure table has a minimum width for detailed view */
+    margin-top: 10px;
 }
 
-.report-section th,
-.report-section td {
-    border: 1px solid #dee2e6; /* Lighter border for a cleaner look */
+#participation-summary-table thead th, #detailed-table thead th {
+    background-color: #3498db; /* Light blue header */
+    color: white;
     padding: 12px 15px;
     text-align: left;
-    white-space: nowrap; /* Prevent text wrapping in cells */
-    vertical-align: middle;
-}
-
-.report-section th {
-    background-color: #007bff;
-    color: white;
-    font-weight: bold;
-    text-transform: uppercase;
     font-size: 0.9em;
-    letter-spacing: 0.05em;
-    position: sticky; /* Make headers sticky for horizontal scroll */
-    top: 0;
-    z-index: 10;
+    letter-spacing: 0.5px;
 }
 
-.report-section tbody tr:nth-child(even) {
-    background-color: #f8f9fa; /* Lighter stripe for readability */
+#participation-summary-table tbody td, #detailed-table tbody td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #ecf0f1;
+    font-size: 0.9em;
 }
 
-.report-section tbody tr:hover {
-    background-color: #e2f0ff; /* Light blue on hover for rows */
+#participation-summary-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
 }
 
-/* Specific styling for clickable cells (e.g., Staff Name in summary) */
-.report-section tbody tr td.staff-name-cell {
-    color: #007bff;
-    text-decoration: underline;
+#participation-summary-table tbody tr:hover {
+    background-color: #e9f7ef; /* Light green hover */
+}
+
+.staff-name-cell {
     cursor: pointer;
-    font-weight: 500;
+    font-weight: bold;
+    color: #1a73e8; /* Google blue for clickable cells */
+    transition: color 0.2s;
 }
 
-.report-section tbody tr td.staff-name-cell:hover {
-    color: #0056b3;
+.staff-name-cell:hover {
+    text-decoration: underline;
+    color: #0d47a1;
 }
 
-/* Info messages (e.g., No data available) */
 .info-message {
     text-align: center;
-    color: #6c757d;
-    font-style: italic;
     padding: 20px;
-    background-color: #f1f1f1;
-    border-radius: 8px;
-    margin-top: 20px;
+    font-style: italic;
+    color: #7f8c8d;
 }
 
-/* Modal Specific Styles */
+/* Modal Styling */
 .modal-overlay {
     display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1000; /* Sit on top */
+    position: fixed;
+    z-index: 1000;
     left: 0;
     top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5); /* Black w/ opacity */
+    justify-content: center;
+    align-items: center;
 }
 
 .modal-content {
     background-color: #fefefe;
-    margin: auto; /* Auto margin for centering */
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 900px;
     position: relative;
-    max-width: 90%; /* Max width for content */
-    max-height: 90vh; /* Max height to prevent content from going off screen */
-    overflow-y: auto; /* Enable vertical scroll for modal content */
-    transform: translateY(0);
-    transition: transform 0.3s ease-out;
-    animation: fadeIn 0.3s ease-out;
-}
-
-/* Animation for modal entry */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
 }
 
 .close-button {
     color: #aaa;
     position: absolute;
-    top: 15px;
-    right: 25px;
+    top: 10px;
+    right: 20px;
     font-size: 30px;
     font-weight: bold;
     cursor: pointer;
@@ -237,6 +237,36 @@ h1 {
     font-size: 0.95em;
 }
 
+/* Nested table styling */
+.nested-monthly-breakdown {
+    width: 100%;
+    margin-top: 5px;
+}
+.nested-monthly-breakdown th {
+    background-color: #ecf0f1 !important;
+    color: #34495e !important;
+    font-weight: normal;
+    padding: 8px !important;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+}
+.nested-monthly-breakdown td {
+    padding: 8px !important;
+    text-align: right;
+    border-bottom: none !important;
+}
+
+.drilldown-staff-row .staff-name-header {
+    background-color: #f3f9ff; /* Lightest blue for staff row header */
+    font-size: 1.1em;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+    border-top: 1px solid #ccc;
+    padding: 10px 12px;
+}
+/* End nested table styling */
+
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .report-container {
@@ -257,36 +287,15 @@ h1 {
 
     .filter-group {
         min-width: unset; /* Remove min-width on small screens */
-        width: 100%; /* Full width for filter groups */
+        width: 100%; /* Full width */
     }
 
     .report-controls button {
-        width: 100%; /* Full width button */
-        margin-top: 15px;
+        width: 100%;
+        margin-top: 10px;
     }
 
-    .report-section h2 {
-        font-size: 1.6em;
-    }
-
-    .report-section th,
-    .report-section td {
-        padding: 8px 10px;
-        font-size: 0.85em;
-    }
-
-    .modal-content {
-        max-width: 95%;
-        padding: 20px;
-    }
-}
-
-@media (max-width: 480px) {
-    h1 {
-        font-size: 1.8em;
-    }
-
-    .report-section h2 {
-        font-size: 1.4em;
+    .summary-box {
+        max-width: 100%;
     }
 }
