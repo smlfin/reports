@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,3 +198,167 @@
     <script src="staff_report.js"></script>
 </body>
 </html>
+=======
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Performance Report</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="new_style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav>
+        <ul class="main-menu">
+            <li><a href="index.html">Home (Daily MIS)</a></li>
+            <li class="has-submenu">
+                <a href="#">Company Reports</a>
+                <ul class="submenu">
+                    <li><a href="company_report_branch_performance.html">Branch Performance</a></li>
+                    <li><a href="#">Company-wise Inflow/Outflow</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Staff Reports</a>
+                <ul class="submenu">
+                    <li><a href="staff_report.html">Individual Staff Drilldown</a></li>
+                    <li><a href="#">Resigned Staff Analysis</a></li>
+                    <li><a href="employee_participation_report.html">Employee Participation Report</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Other Reports</a>
+                <ul class="submenu">
+                    <li><a href="fresh_old_report.html">Fresh vs Old Clients</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <h1>Individual Staff Performance Report</h1>
+
+    <div class="report-controls">
+        <label for="company-select">Select Company:</label>
+        <select id="company-select"></select>
+
+        <label for="staff-search-container">Select Staff:</label>
+        <div class="staff-search-container">
+            <input type="text" id="staff-search" placeholder="Type to search staff...">
+            <select id="staff-select" size="5"></select>
+        </div>
+
+        <label for="month-select">Select Month:</label>
+        <select id="month-select"></select>
+    </div>
+
+    <div id="report-container" class="hidden">
+        <div class="report-section" id="overall-contribution-section">
+            <h2>Performance Summary (Till Date)</h2>
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Inflow</h3>
+                    <p id="total-inflow"></p>
+                </div>
+                <div class="card">
+                    <h3>Total Outflow</h3>
+                    <p id="total-outflow"></p>
+                </div>
+                <div class="card">
+                    <h3>Net Growth</h3>
+                    <p id="total-net-growth"></p>
+                </div>
+            </div>
+            <div class="summary-details">
+                <div class="fresh-customers">
+                    <h3>Fresh Customers</h3>
+                    <ul id="fresh-customer-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="report-section" id="customer-loyalty-section">
+            <h2>Customer Loyalty & Retention</h2>
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Churn Rate</h3>
+                    <p id="churn-rate">--</p>
+                </div>
+            </div>
+            <div class="summary-details">
+                <h3>Repeat Business</h3>
+                <ul id="repeat-business-list"></ul>
+            </div>
+        </div>
+
+        <div class="report-section" id="monthly-trends-section">
+            <h2>Monthly Breakup</h2>
+            <table id="monthly-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Inflow</th>
+                        <th>Outflow</th>
+                        <th>Net Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="report-section" id="company-performance-section">
+            <h2>Product/Company-Wise Breakdown</h2>
+            <table id="company-breakdown-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Company Name</th>
+                        <th>Inflow</th>
+                        <th>Outflow</th>
+                        <th>Net Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="report-section" id="cumulative-trends-section">
+            <h2>Cumulative Performance Trends</h2>
+            <canvas id="cumulative-performance-chart"></canvas>
+        </div>
+
+        <div class="report-section" id="historical-trends-section">
+            <h2>Historical Performance Trends</h2>
+            <canvas id="performance-chart"></canvas>
+        </div>
+    </div>
+
+    <div id="detailed-entries-container" class="report-section hidden">
+        <button id="back-to-report-btn">← Back to Report</button>
+        <h2>Detailed Entries for <span id="detailed-title"></span></h2>
+        <div class="controls">
+            <label>
+                <input type="checkbox" id="show-customer-name"> Show Customer Names
+            </label>
+        </div>
+        <table id="detailed-table" class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>INF Total</th>
+                    <th>OUT Total</th>
+                    <th>Net</th>
+                    <th class="customer-name-column hidden">Customer Name</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="staff_report.js"></script>
+</body>
+</html>
+>>>>>>> 97062f67d6053ee66819e93d876f785ba5b20e00

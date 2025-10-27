@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -126,4 +127,129 @@
 
     <script src="employee_participation_report.js"></script>
 </body>
+=======
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Participation Report</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="employee_participation_report.css"> </head>
+<body>
+    <nav>
+        <ul class="main-menu">
+            <li><a href="index.html">Home</a></li>
+            <li class="has-submenu">
+                <a href="#">Company Reports</a>
+                <ul class="submenu">
+                    <li><a href="company_inflow_outflow.html">Company-wise Inflow/Outflow Report</a></li>
+ <li><a href="company_report_branch_performance.html">Branch Performance</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Staff Reports</a>
+                <ul class="submenu">
+                    <li><a href="staff_report.html">Individual Staff Drilldown</a></li>
+                    <li><a href="resigned_staff_report.html">Resigned Staff Analysis Report</a></li>
+                    <li><a href="employee_participation_report.html">Employee Participation Report</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Other Reports</a>
+                <ul class="submenu">
+                    <li><a href="fresh_old_report.html">Fresh/Old Customer Report</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="report-container">
+        <h1>Employee Participation Report (Company-wise, Monthly)</h1>
+
+        <div class="report-controls">
+            <div class="filter-group">
+                <label for="month-select">Select Month:</label>
+                <select id="month-select"></select>
+            </div>
+            <div class="filter-group">
+                <label for="company-search">Search Company:</label>
+                <input type="text" id="company-search" placeholder="Type to filter companies">
+            </div>
+            <div class="filter-group">
+                <label for="company-select">Select Company:</label>
+                <select id="company-select"></select>
+            </div>
+             <div class="filter-group">
+                <label for="staff-search">Search Staff:</label>
+                <input type="text" id="staff-search" placeholder="Type to filter staff">
+            </div>
+            <div class="filter-group">
+                <label for="staff-select">Select Staff:</label>
+                <select id="staff-select"></select>
+            </div>
+            <button id="view-detailed-btn">View Detailed Entries</button>
+        </div>
+
+        <div class="report-section" id="monthly-company-summary-section">
+            <h2>Monthly Employee Participation Summary</h2>
+            <div class="table-responsive">
+                <table id="participation-summary-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Company Name</th>
+                            <th>Total Unique Employees</th>
+                            <th>Repeating Employees</th>
+                            <th>New Employees</th>
+                            <th>Total Inflow</th>
+                            <th>Total Outflow</th>
+                            <th>Net Contribution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            <p id="no-summary-data-message" class="info-message" style="display: none;">No participation data available for the selected filters.</p>
+        </div>
+
+        <div class="report-section" id="detailed-entries-container" style="display: none;">
+            <h2>Detailed Entries</h2>
+            <div class="table-responsive">
+                <table id="detailed-table">
+                    <thead>
+                        <tr></tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            <p id="no-detailed-data-message" class="info-message" style="display: none;">No detailed entries found for the selected filters.</p>
+        </div>
+    </div>
+
+    <div id="employee-drilldown-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-button" id="close-employee-drilldown-modal">&times;</span>
+            <h2 id="employee-drilldown-title">Employee Participation Drilldown</h2>
+            <div class="table-responsive">
+                <table id="employee-drilldown-table">
+                    <thead>
+                        <tr>
+                            <th>Staff Name</th>
+                            <th colspan="4">Monthly Contribution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            <p id="no-employee-drilldown-data-message" class="info-message" style="display: none;">No monthly participation data available for this employee.</p>
+        </div>
+    </div>
+
+    <script src="employee_participation_report.js"></script>
+</body>
+>>>>>>> 97062f67d6053ee66819e93d876f785ba5b20e00
 </html>

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -128,4 +129,128 @@
 
     <script src="company_report_branch_performance.js"></script>
 </body>
+=======
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch Performance Report</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="company_report_branch_performance.css"> <link rel="stylesheet" href="branch_performance_styles.css"> </head>
+<body>
+    <nav>
+        <ul class="main-menu">
+            <li><a href="index.html">Home</a></li>
+            <li class="has-submenu">
+                <a href="#">Company Reports</a>
+                <ul class="submenu">
+                    <li><a href="company_inflow_outflow.html">Company-wise Inflow/Outflow Report</a></li>
+                    <li><a href="company_report_branch_performance.html">Branch Performance Report</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Staff Reports</a>
+                <ul class="submenu">
+                    <li><a href="staff_report.html">Individual Staff Drilldown</a></li>
+                    <li><a href="resigned_staff_report.html">Resigned Staff Analysis Report</a></li>
+                    <li><a href="employee_participation_report.html">Employee Participation Report</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Other Reports</a>
+                <ul class="submenu">
+                    <li><a href="fresh_old_report.html">Fresh/Old Customer Report</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="report-container">
+        <h1>Branch Performance Report</h1>
+
+        <div class="report-controls">
+            <div class="filter-group">
+                <label for="company-search">Search Company:</label>
+                <input type="text" id="company-search" placeholder="Type to filter companies">
+            </div>
+            <div class="filter-group">
+                <label for="company-select">Select Company:</label>
+                <select id="company-select">
+                    <option value="">-- Select a Company --</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="month-select">Select Month:</label>
+                <select id="month-select"></select>
+            </div>
+            <button id="view-detailed-btn">View Detailed Entries</button>
+        </div>
+
+        <div id="no-company-selected-message" class="info-message" style="display: block;">
+            Please select a company to view its branch performance.
+        </div>
+
+        <div class="report-section" id="branch-performance-summary-section" style="display: none;">
+            <h2>Monthly Branch Performance Summary</h2>
+            <div class="table-responsive">
+                <table id="branch-performance-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Branch</th>
+                            <th>Total Inflow</th>
+                            <th>Total Outflow</th>
+                            <th>Net</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            <p id="no-summary-data-message" class="info-message" style="display: none;">No data available for the selected filters.</p>
+        </div>
+
+        <div class="report-section" id="detailed-entries-container" style="display: none;">
+            <h2>Detailed Entries</h2>
+            <div class="table-responsive">
+                <table id="detailed-table">
+                    <thead>
+                        <tr></tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            <p id="no-detailed-data-message" class="info-message" style="display: none;">No detailed entries found for the selected filters.</p>
+        </div>
+    </div>
+
+    <div id="employee-details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-button" id="close-employee-modal">&times;</span>
+            <div class="report-section report-section-modal">
+                <h2 id="employee-modal-title">Employee Participation Details for [Branch] - [Month]</h2>
+                <div class="table-responsive">
+                    <table id="employee-details-table">
+                        <thead>
+                            <tr>
+                                <th>Employee Name</th>
+                                <th>Total Inflow</th>
+                                <th>Total Outflow</th>
+                                <th>Net</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+                <p id="no-employee-data-message" class="info-message" style="display: none;">No employee data available for this branch and month.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="company_report_branch_performance.js"></script>
+</body>
+>>>>>>> 97062f67d6053ee66819e93d876f785ba5b20e00
 </html>

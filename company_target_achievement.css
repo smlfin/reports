@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* General Report Container Styling */
 .report-container {
     max-width: 1200px;
@@ -348,4 +349,73 @@ h1 {
     .main-menu > li {
         margin: 5px 0;
     }
+=======
+/* company_target_achievement.css */
+
+.overall-summary-card {
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.overall-summary-card p {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0;
+    color: #333;
+}
+
+.overall-summary-card span {
+    font-size: 1.4rem;
+}
+
+/* Styles for positive and negative differences */
+.positive-difference {
+    color: #28a745; /* Green */
+}
+
+.negative-difference {
+    color: #dc3545; /* Red */
+}
+
+/* General table styling from style.css */
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.report-table th,
+.report-table td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.report-table th {
+    background-color: #0056b3;
+    color: white;
+    font-weight: bold;
+}
+
+.report-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.report-table tr:hover {
+    background-color: #f1f1f1;
+}
+
+.no-data-message {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    margin-top: 20px;
+>>>>>>> 97062f67d6053ee66819e93d876f785ba5b20e00
 }
