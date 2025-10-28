@@ -15,8 +15,9 @@ let freshCustomerDetailsMap = new Map();
 const dataStartDate = new Date('2025-04-01T00:00:00');
 const dataEndDate = new Date('2026-03-31T23:59:59');
 
-// --- DOM Elements ---
-const monthSelect = document.getElementById('month-select');
+// --- DOM Elements (UPDATED FOR DATE RANGE) ---
+const fromMonthSelect = document.getElementById('from-month-select');
+const toMonthSelect = document.getElementById('to-month-select');
 const companySelect = document.getElementById('company-select');
 const branchSelect = document.getElementById('branch-select');
 const viewEntriesBtn = document.getElementById('view-entries-btn');
@@ -170,7 +171,7 @@ async function init() {
     }
 }
 
-// --- Filter Population ---
+// --- Filter Population (UPDATED FOR DATE RANGE) ---
 function populateFilters() {
     const companies = new Set();
     const branches = new Set();
@@ -183,9 +184,15 @@ function populateFilters() {
         if (branchColIndex !== -1) branches.add(row[branchColIndex]);
     });
 
-    monthSelect.innerHTML = '<option value="">All Months</option>';
-    const today = new Date();
+    // NEW Logic for From/To Month Select
+    fromMonthSelect.innerHTML = '';
+    toMonthSelect.innerHTML = '';
+    const monthOptions = [];
+
+    // Loop through the data range (April 2025 - March 2026)
     let currentDateIterator = new Date(dataStartDate);
+    const today = new Date();
+
     while (currentDateIterator <= today && currentDateIterator <= dataEndDate) {
         const year = currentDateIterator.getFullYear();
         const month = (currentDateIterator.getMonth() + 1).toString().padStart(2, '0');
@@ -194,13 +201,35 @@ function populateFilters() {
             year: 'numeric',
             month: 'long'
         });
-        const option = document.createElement('option');
-        option.value = optionValue;
-        option.textContent = optionText;
-        monthSelect.appendChild(option);
+        
+        monthOptions.push({ value: optionValue, text: optionText });
+        
+        // Move to the next month
         currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
     }
+    
+    // Populate both select elements
+    monthOptions.forEach((optionData, index) => {
+        const fromOption = document.createElement('option');
+        fromOption.value = optionData.value;
+        fromOption.textContent = optionData.text;
+        fromMonthSelect.appendChild(fromOption);
+        
+        const toOption = document.createElement('option');
+        toOption.value = optionData.value;
+        toOption.textContent = optionData.text;
+        toMonthSelect.appendChild(toOption);
 
+        // Set default selection: From = first month, To = last month available
+        if (index === 0) {
+            fromMonthSelect.value = optionData.value;
+        }
+        if (index === monthOptions.length - 1) {
+            toMonthSelect.value = optionData.value;
+        }
+    });
+
+    // Existing logic for Company and Branch remains the same
     companySelect.innerHTML = '<option value="">All Companies</option>';
     Array.from(companies).sort().forEach(company => {
         const option = document.createElement('option');
@@ -218,9 +247,10 @@ function populateFilters() {
     });
 }
 
-// --- Filter Data based on selections ---
+// --- Filter Data based on selections (UPDATED FOR DATE RANGE) ---
 function getFilteredData(ignoreMonthFilter = false) {
-    const selectedMonth = monthSelect.value;
+    const selectedFromMonth = fromMonthSelect.value;
+    const selectedToMonth = toMonthSelect.value;
     const selectedCompany = companySelect.value;
     const selectedBranch = branchSelect.value;
 
@@ -228,17 +258,35 @@ function getFilteredData(ignoreMonthFilter = false) {
     const companyColIndex = headers.indexOf('COMPANY NAME');
     const branchColIndex = headers.indexOf('BRANCH');
 
+    // Convert 'YYYY-MM' strings to Date objects for comparison.
+    // Use the 1st day of the 'From' month and the last moment of the 'To' month.
+    let filterStartDate = null;
+    let filterEndDate = null;
+
+    if (selectedFromMonth) {
+        // 'YYYY-MM-01' at 00:00:00
+        filterStartDate = new Date(selectedFromMonth + '-01T00:00:00');
+    }
+    if (selectedToMonth) {
+        // Get the first day of the *next* month, then subtract 1 millisecond (to get the last moment of the selected month).
+        const [year, month] = selectedToMonth.split('-').map(Number);
+        const nextMonth = new Date(year, month, 1);
+        filterEndDate = new Date(nextMonth.getTime() - 1);
+    }
+
     return allData.filter(row => {
         let matchMonth = true;
         let matchCompany = true;
         let matchBranch = true;
 
-        const rowDate = row[dateColIndex];
+        const rowDate = row[dateColIndex]; // This is already a Date object from init()
 
-        if (!ignoreMonthFilter && selectedMonth && rowDate) {
-            const rowYearMonth = `${rowDate.getFullYear()}-${(rowDate.getMonth() + 1).toString().padStart(2, '0')}`;
-            matchMonth = (rowYearMonth === selectedMonth);
+        if (!ignoreMonthFilter && rowDate) {
+            // Check if rowDate is >= filterStartDate AND <= filterEndDate
+            matchMonth = (!filterStartDate || rowDate >= filterStartDate) && 
+                         (!filterEndDate || rowDate <= filterEndDate);
         }
+
         if (selectedCompany && companyColIndex !== -1) {
             matchCompany = (row[companyColIndex] === selectedCompany);
         }
@@ -253,7 +301,7 @@ function getFilteredData(ignoreMonthFilter = false) {
 // --- Report Generation ---
 function generateReport() {
     const filteredDataForOverallAndCompany = getFilteredData(false);
-    const filteredDataForMonthlyTrends = getFilteredData(true);
+    const filteredDataForMonthlyTrends = getFilteredData(true); // Always use all months for monthly trends, regardless of filter
 
     freshCustomerDetailsMap = new Map();
     freshStaffParticipationMap = new Map();
@@ -629,8 +677,9 @@ function closeCustomerDetailsModal() {
     customerDetailsModal.style.display = 'none';
 }
 
-// --- Event Listeners ---
-monthSelect.addEventListener('change', generateReport);
+// --- Event Listeners (UPDATED FOR DATE RANGE) ---
+fromMonthSelect.addEventListener('change', generateReport);
+toMonthSelect.addEventListener('change', generateReport);
 companySelect.addEventListener('change', generateReport);
 branchSelect.addEventListener('change', generateReport);
 viewEntriesBtn.addEventListener('click', viewDetailedEntries);
