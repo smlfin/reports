@@ -91,12 +91,16 @@
             </div>
             <div class="summary-details">
                 <div class="fresh-customers">
-                    <h3>Fresh Customers</h3>
-                    <ul id="fresh-customer-list"></ul>
+                    <h3 class="collapsible-header collapsed" onclick="toggleCollapse(this)">Fresh Customers <span class="collapse-icon">▼</span></h3>
+                    <div class="collapsible-content collapsed">
+                        <ul id="fresh-customer-list"></ul>
+                    </div>
                 </div>
                 <div class="repeat-customers">
-                    <h3>Repeat Business</h3>
-                    <ul id="repeat-business-list"></ul>
+                    <h3 class="collapsible-header collapsed" onclick="toggleCollapse(this)">Repeat Business <span class="collapse-icon">▼</span></h3>
+                    <div class="collapsible-content collapsed">
+                        <ul id="repeat-business-list"></ul>
+                    </div>
                 </div>
             </div>
         </div>
