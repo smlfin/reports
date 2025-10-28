@@ -18,6 +18,16 @@ const monthSelect = document.getElementById('month-select');
 const companySearchInput = document.getElementById('company-search');
 const companySelect = document.getElementById('company-select');
 const viewDetailedEntriesBtn = document.getElementById('view-detailed-entries-btn');
+// NEW COMPARISON ELEMENTS
+const compareToPrevMonthCheckbox = document.getElementById('compare-to-prev-month');
+const comparisonSummaryEl = document.getElementById('comparison-summary');
+const summaryDateRangeEl = document.getElementById('summary-date-range');
+const comparisonDateRangeEl = document.getElementById('comparison-date-range');
+const comparisonTotalInflowEl = document.getElementById('comparison-total-inflow');
+const comparisonTotalOutflowEl = document.getElementById('comparison-total-outflow');
+const comparisonTotalNetGrowthEl = document.getElementById('comparison-total-net-growth');
+const comparisonHeaders = document.querySelectorAll('.comparison-header');
+
 
 const overallTotalInflowEl = document.getElementById('overall-total-inflow');
 const overallTotalOutflowEl = document.getElementById('overall-total-outflow');
@@ -35,7 +45,7 @@ const detailedTableBody = document.querySelector('#detailed-table tbody');
 const noDetailedDataMessage = document.getElementById('no-detailed-data-message');
 
 
-// --- Utility Functions ---
+// --- Utility Functions (parseLine, parseDate, formatIndianNumber, parseNumericalValue remain unchanged) ---
 
 // Function to parse a single CSV line, handling quoted fields and escaped quotes
 function parseLine(line) {
@@ -124,7 +134,7 @@ function parseNumericalValue(valueString) {
     return isNaN(parsedValue) ? 0 : parsedValue;
 }
 
-// --- Main Data Fetching and Initialization ---
+// --- Main Data Fetching and Initialization (init and populateFilters remain mostly unchanged) ---
 async function init() {
     try {
         const response = await fetch(csvUrl);
@@ -169,7 +179,7 @@ async function init() {
     }
 }
 
-// --- Filter Population ---
+// --- Filter Population (Unchanged) ---
 function populateFilters() {
     const companies = new Set();
     const companyColIndex = headers.indexOf('COMPANY NAME');
@@ -202,7 +212,7 @@ function populateFilters() {
     }
 }
 
-// --- Filter Company Dropdown based on Search Input ---
+// --- Filter Company Dropdown based on Search Input (Unchanged) ---
 function filterCompanyList() {
     const searchTerm = companySearchInput.value.toLowerCase();
     companySelect.innerHTML = '<option value="">All Companies</option>'; // Always include 'All Companies' option
@@ -210,32 +220,131 @@ function filterCompanyList() {
     allCompanyNames.filter(company => company.toLowerCase().includes(searchTerm))
                  .forEach(company => {
                      const option = document.createElement('option');
-                     option.value = company;
-                     option.textContent = company;
-                     companySelect.appendChild(option);
+                     const isSelected = company.toLowerCase() === searchTerm; // Check for exact match
+                     const companyOption = document.createElement('option');
+                     companyOption.value = company;
+                     companyOption.textContent = company;
+                     if (isSelected) companyOption.selected = true; // Select exact match if found
+                     companySelect.appendChild(companyOption);
                  });
-
-    const exactMatchOption = allCompanyNames.find(company => company.toLowerCase() === searchTerm);
-    if (exactMatchOption && searchTerm !== '') {
-        companySelect.value = exactMatchOption;
-    } else {
-        companySelect.selectedIndex = 0;
+    
+    // Only call generateReport if the company list itself was filtered (not just initial load)
+    if (document.activeElement === companySearchInput) {
+        generateReport(); 
     }
-    generateReport(); // Re-generate report after company list is filtered
+}
+
+
+// --- Calculate Comparison Dates ---
+function getComparisonDates(selectedMonth) {
+    const dateColIndex = headers.indexOf('DATE');
+    const selectedCompany = companySelect.value;
+    let maxDay = new Date().getDate(); // Default to current day
+    let currentMonthStart = null;
+    let currentMonthEnd = null;
+
+    if (selectedMonth) {
+        // Calculate the last day of the month for the selected YYYY-MM
+        const parts = selectedMonth.split('-');
+        const year = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1; // 0-indexed month
+        const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+
+        currentMonthStart = new Date(year, month, 1, 0, 0, 0);
+
+        // Filter the data to find the latest date in the selected period (month/company)
+        let latestDateInSelection = currentMonthStart;
+        allData.filter(row => {
+            let rowDate = row[dateColIndex];
+            if (!rowDate) return false;
+            
+            // Check if date is in selected month
+            const rowYearMonth = `${rowDate.getFullYear()}-${(rowDate.getMonth() + 1).toString().padStart(2, '0')}`;
+            let inSelectedMonth = (rowYearMonth === selectedMonth);
+
+            // Check if company matches (if one is selected)
+            let matchCompany = true;
+            if (selectedCompany && headers.indexOf('COMPANY NAME') !== -1) {
+                matchCompany = (row[headers.indexOf('COMPANY NAME')] === selectedCompany);
+            }
+
+            return inSelectedMonth && matchCompany;
+
+        }).forEach(row => {
+            if (row[dateColIndex] > latestDateInSelection) {
+                latestDateInSelection = row[dateColIndex];
+            }
+        });
+
+        // The end date for the main report is the latest day in the data, or the current day if the selected month is the current month.
+        if (selectedMonth === `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`) {
+            // If current month is selected, use the current day of the month
+            maxDay = currentDate.getDate();
+        } else {
+            // Otherwise, use the latest day from the available data for that month
+            maxDay = latestDateInSelection.getDate();
+        }
+
+        currentMonthEnd = new Date(year, month, maxDay, 23, 59, 59);
+
+    } else {
+        // If 'All Months' selected, the end date is the current date
+        currentMonthStart = dataStartDate;
+        currentMonthEnd = currentDate;
+    }
+
+    // Now calculate the comparison period (Previous Month, up to maxDay)
+    const prevMonthEnd = new Date(currentMonthEnd.getTime());
+    
+    if (selectedMonth) {
+        // Go back one month, keeping the same day (maxDay)
+        prevMonthEnd.setMonth(prevMonthEnd.getMonth() - 1);
+        // Handle case where previous month has fewer days (e.g., March 31 -> February 31 becomes March 3)
+        // Set to 1st of the previous month's actual month, then set day.
+        // Simple way: setting day 'maxDay' will auto-handle overflow, but we must ensure we are in the actual previous month.
+        // Go back two months from current month end, set day to 1, then forward one month.
+        const prevMonthYear = new Date(currentMonthStart.getTime());
+        prevMonthYear.setDate(1); // Set day to 1 to avoid month overflow issues
+        prevMonthYear.setMonth(prevMonthYear.getMonth() - 1);
+        
+        const prevMonthMaxDay = Math.min(maxDay, new Date(prevMonthYear.getFullYear(), prevMonthYear.getMonth() + 1, 0).getDate());
+
+        const comparisonEnd = new Date(prevMonthYear.getFullYear(), prevMonthYear.getMonth(), prevMonthMaxDay, 23, 59, 59);
+        const comparisonStart = new Date(prevMonthYear.getFullYear(), prevMonthYear.getMonth(), 1, 0, 0, 0);
+
+        return {
+            reportStart: currentMonthStart,
+            reportEnd: currentMonthEnd,
+            comparisonStart: comparisonStart,
+            comparisonEnd: comparisonEnd
+        };
+
+    } else {
+        // If 'All Months' is selected, comparison is disabled.
+         return {
+            reportStart: currentMonthStart,
+            reportEnd: currentMonthEnd,
+            comparisonStart: null,
+            comparisonEnd: null
+        };
+    }
 }
 
 
 // --- Filter Data based on selections ---
-function getFilteredData() {
+function getFilteredData(dateRange) {
     const selectedCompany = companySelect.value;
-    const selectedMonth = monthSelect.value; // YYYY-MM format
-
     const dateColIndex = headers.indexOf('DATE');
     const companyColIndex = headers.indexOf('COMPANY NAME');
 
+    const startDate = dateRange.start;
+    const endDate = dateRange.end;
+
+    if (!startDate || !endDate) return [];
+
     return allData.filter(row => {
         let matchCompany = true;
-        let matchMonth = true;
+        let matchDate = false;
 
         const rowDate = row[dateColIndex];
 
@@ -243,157 +352,237 @@ function getFilteredData() {
             matchCompany = (row[companyColIndex] === selectedCompany);
         }
 
-        if (selectedMonth && rowDate) {
-            const rowYearMonth = `${rowDate.getFullYear()}-${(rowDate.getMonth() + 1).toString().padStart(2, '0')}`;
-            matchMonth = (rowYearMonth === selectedMonth);
+        if (rowDate) {
+            matchDate = (rowDate >= startDate && rowDate <= endDate);
         }
-        return matchCompany && matchMonth;
+        return matchCompany && matchDate;
     });
 }
 
-// --- Report Generation ---
-function generateReport() {
-    const filteredData = getFilteredData();
-    // Use headers.indexOf to get the correct column index
+
+// --- Core Report Calculation Function ---
+function calculateReportFigures(data) {
     const infTotalColIndex = headers.indexOf('INF Total');
     const outTotalColIndex = headers.indexOf('OUT Total');
-    const netColIndex = headers.indexOf('Net');
-    const dateColIndex = headers.indexOf('DATE');
     const companyColIndex = headers.indexOf('COMPANY NAME');
 
-    // Hide detailed entries by default when report is generated/re-generated
-    detailedEntriesContainer.style.display = 'none';
+    let totalInflow = 0;
+    let totalOutflow = 0;
+    const companySummary = {};
+    const monthlyData = {};
+    
+    data.forEach(row => {
+        const inflow = parseNumericalValue(row[infTotalColIndex]);
+        const outflow = parseNumericalValue(row[outTotalColIndex]);
 
-    // --- Calculate Overall Summary for the selected period ---
-    let overallInflow = 0;
-    let overallOutflow = 0;
-    let overallNetGrowth = 0;
-    filteredData.forEach(row => { // Use filteredData here to reflect selected month
-        if (infTotalColIndex !== -1) {
-            overallInflow += parseNumericalValue(row[infTotalColIndex]);
-        }
-        if (outTotalColIndex !== -1) {
-            overallOutflow += parseNumericalValue(row[outTotalColIndex]);
-        }
-        // Recalculating Net from Inflow and Outflow to fix discrepancy
-        overallNetGrowth += parseNumericalValue(row[infTotalColIndex]) - parseNumericalValue(row[outTotalColIndex]);
-    });
+        totalInflow += inflow;
+        totalOutflow += outflow;
 
-    overallTotalInflowEl.textContent = formatIndianNumber(overallInflow);
-    overallTotalOutflowEl.textContent = formatIndianNumber(overallOutflow);
-    overallTotalNetGrowthEl.textContent = formatIndianNumber(overallNetGrowth);
-
-
-    // --- Calculate Company-wise Summary ---
-    const companySummary = {}; // Key: Company Name, Value: { inflow: X, outflow: Y, net: Z }
-    if (companyColIndex === -1) {
-        console.warn("COMPANY NAME column not found. Skipping company-wise summary.");
-        companySummaryTableBody.innerHTML = '';
-        noCompanyDataMessage.style.display = 'block';
-    } else {
-        filteredData.forEach(row => {
+        // Company-wise Summary
+        if (companyColIndex !== -1) {
             const companyName = row[companyColIndex];
-            if (!companyName) return;
-
-            if (!companySummary[companyName]) {
-                companySummary[companyName] = { inflow: 0, outflow: 0, net: 0, contribution: 0 };
-            }
-
-            if (infTotalColIndex !== -1) {
-                companySummary[companyName].inflow += parseNumericalValue(row[infTotalColIndex]);
-            }
-            if (outTotalColIndex !== -1) {
-                companySummary[companyName].outflow += parseNumericalValue(row[outTotalColIndex]);
-            }
-            // Recalculating Net to fix discrepancy
-            companySummary[companyName].net = companySummary[companyName].inflow - companySummary[companyName].outflow;
-        });
-
-        // Calculate percentage contribution
-        let totalNetGrowthForContribution = overallNetGrowth;
-
-        companySummaryTableBody.innerHTML = ''; // Clear previous data
-        const sortedCompanies = Object.keys(companySummary).sort();
-        if (sortedCompanies.length === 0) {
-            noCompanyDataMessage.style.display = 'block';
-        } else {
-            noCompanyDataMessage.style.display = 'none';
-            sortedCompanies.forEach(companyName => {
-                const data = companySummary[companyName];
-                // Handle division by zero for contribution calculation
-                if (totalNetGrowthForContribution !== 0) {
-                     data.contribution = (data.net / totalNetGrowthForContribution) * 100;
-                } else {
-                    data.contribution = 0;
+            if (companyName) {
+                if (!companySummary[companyName]) {
+                    companySummary[companyName] = { inflow: 0, outflow: 0, net: 0 };
                 }
-                if (isNaN(data.contribution) || !isFinite(data.contribution)) {
-                    data.contribution = 0;
-                }
-
-                const row = companySummaryTableBody.insertRow();
-                row.insertCell().textContent = companyName;
-                row.insertCell().textContent = formatIndianNumber(data.inflow);
-                row.insertCell().textContent = formatIndianNumber(data.outflow);
-                row.insertCell().textContent = formatIndianNumber(data.net);
-                row.insertCell().textContent = `${data.contribution.toFixed(2)}%`;
-            });
+                companySummary[companyName].inflow += inflow;
+                companySummary[companyName].outflow += outflow;
+            }
         }
-    }
 
-
-    // --- Calculate Monthly Breakup (for selected company or all companies) ---
-    const monthlyData = {}; // Key: YYYY-MM, Value: { inflow: X, outflow: Y, net: Z }
-    if (dateColIndex === -1) {
-        console.warn("DATE column not found. Skipping monthly breakup.");
-        monthlyTableBody.innerHTML = '';
-        noMonthlyDataMessage.style.display = 'block';
-    } else {
-        filteredData.forEach(row => {
-            const date = row[dateColIndex];
-            if (!date) return;
-
+        // Monthly Breakup
+        const date = row[headers.indexOf('DATE')];
+        if (date) {
             const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-
             if (!monthlyData[yearMonth]) {
                 monthlyData[yearMonth] = { inflow: 0, outflow: 0, net: 0 };
             }
-
-            if (infTotalColIndex !== -1) {
-                monthlyData[yearMonth].inflow += parseNumericalValue(row[infTotalColIndex]);
-            }
-            if (outTotalColIndex !== -1) {
-                monthlyData[yearMonth].outflow += parseNumericalValue(row[outTotalColIndex]);
-            }
-        });
-        
-        // Recalculating net after summing inflow and outflow
-        Object.keys(monthlyData).forEach(monthKey => {
-            monthlyData[monthKey].net = monthlyData[monthKey].inflow - monthlyData[monthKey].outflow;
-        });
-
-        monthlyTableBody.innerHTML = ''; // Clear previous data
-        const sortedMonths = Object.keys(monthlyData).sort();
-        if (sortedMonths.length === 0) {
-            noMonthlyDataMessage.style.display = 'block';
-        } else {
-            noMonthlyDataMessage.style.display = 'none';
-            sortedMonths.forEach(monthKey => {
-                const data = monthlyData[monthKey];
-                const row = monthlyTableBody.insertRow();
-                const monthName = new Date(monthKey + '-01').toLocaleString('en-IN', { year: 'numeric', month: 'long' });
-
-                row.insertCell().textContent = monthName;
-                row.insertCell().textContent = formatIndianNumber(data.inflow);
-                row.insertCell().textContent = formatIndianNumber(data.outflow);
-                row.insertCell().textContent = formatIndianNumber(data.net);
-            });
+            monthlyData[yearMonth].inflow += inflow;
+            monthlyData[yearMonth].outflow += outflow;
         }
-    }
+    });
+
+    const totalNetGrowth = totalInflow - totalOutflow;
+
+    // Finalize Net calculations
+    Object.keys(companySummary).forEach(name => {
+        companySummary[name].net = companySummary[name].inflow - companySummary[name].outflow;
+    });
+    Object.keys(monthlyData).forEach(month => {
+        monthlyData[month].net = monthlyData[month].inflow - monthlyData[month].outflow;
+    });
+
+    return { totalInflow, totalOutflow, totalNetGrowth, companySummary, monthlyData };
 }
 
-// --- Detailed Entries View ---
+
+// --- Report Generation ---
+function generateReport() {
+    const selectedMonth = monthSelect.value;
+    const isComparisonEnabled = compareToPrevMonthCheckbox.checked;
+
+    const dateColIndex = headers.indexOf('DATE');
+    const companyColIndex = headers.indexOf('COMPANY NAME');
+
+    // 1. Determine Date Ranges
+    const dateRanges = getComparisonDates(selectedMonth);
+
+    const reportRange = { start: dateRanges.reportStart, end: dateRanges.reportEnd };
+    const comparisonRange = { start: dateRanges.comparisonStart, end: dateRanges.comparisonEnd };
+
+    // 2. Filter Data and Calculate Main Report Figures
+    const mainData = getFilteredData(reportRange);
+    const mainReport = calculateReportFigures(mainData);
+
+    // 3. Filter Data and Calculate Comparison Figures (if enabled and possible)
+    let comparisonReport = { totalInflow: 0, totalOutflow: 0, totalNetGrowth: 0, companySummary: {}, monthlyData: {} };
+    let canCompare = isComparisonEnabled && comparisonRange.start !== null && selectedMonth;
+
+    if (canCompare) {
+        const comparisonData = getFilteredData(comparisonRange);
+        comparisonReport = calculateReportFigures(comparisonData);
+    }
+
+    // 4. Update UI Visibility for Comparison
+    comparisonSummaryEl.style.display = canCompare ? 'block' : 'none';
+    comparisonHeaders.forEach(th => th.style.display = canCompare ? 'table-cell' : 'none');
+
+    // 5. Update Date Range Labels
+    if (selectedMonth) {
+        const startMonthName = reportRange.start.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        const endDay = reportRange.end.getDate();
+        summaryDateRangeEl.textContent = `${startMonthName} (1st - ${endDay}th)`;
+        
+        if (canCompare) {
+             const compMonthName = comparisonRange.start.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+             const compEndDay = comparisonRange.end.getDate();
+             comparisonDateRangeEl.textContent = `${compMonthName} (1st - ${compEndDay}th)`;
+        }
+    } else {
+        summaryDateRangeEl.textContent = 'April 2025 - Current Month';
+    }
+
+
+    // 6. Populate Overall Summary (Main Report)
+    overallTotalInflowEl.textContent = formatIndianNumber(mainReport.totalInflow);
+    overallTotalOutflowEl.textContent = formatIndianNumber(mainReport.totalOutflow);
+    overallTotalNetGrowthEl.textContent = formatIndianNumber(mainReport.totalNetGrowth);
+
+    // 7. Populate Comparison Summary (If Enabled)
+    if (canCompare) {
+        comparisonTotalInflowEl.textContent = formatIndianNumber(comparisonReport.totalInflow);
+        comparisonTotalOutflowEl.textContent = formatIndianNumber(comparisonReport.totalOutflow);
+        comparisonTotalNetGrowthEl.textContent = formatIndianNumber(comparisonReport.totalNetGrowth);
+    }
+
+    // 8. Populate Company-wise Summary
+    // Use the union of company names from both reports
+    const allCompanyNamesInReport = new Set([
+        ...Object.keys(mainReport.companySummary),
+        ...Object.keys(comparisonReport.companySummary)
+    ]);
+    const sortedCompanies = Array.from(allCompanyNamesInReport).sort();
+
+    companySummaryTableBody.innerHTML = '';
+    const totalNetGrowthForContribution = mainReport.totalNetGrowth; // Use main report's net for contribution base
+
+    if (sortedCompanies.length === 0) {
+        noCompanyDataMessage.style.display = 'block';
+    } else {
+        noCompanyDataMessage.style.display = 'none';
+        sortedCompanies.forEach(companyName => {
+            const mainData = mainReport.companySummary[companyName] || { inflow: 0, outflow: 0, net: 0 };
+            const compData = comparisonReport.companySummary[companyName] || { inflow: 0, outflow: 0, net: 0 };
+
+            let contribution = 0;
+            if (totalNetGrowthForContribution !== 0) {
+                 contribution = (mainData.net / totalNetGrowthForContribution) * 100;
+            }
+            if (isNaN(contribution) || !isFinite(contribution)) {
+                contribution = 0;
+            }
+
+            const row = companySummaryTableBody.insertRow();
+            row.insertCell().textContent = companyName;
+            row.insertCell().textContent = formatIndianNumber(mainData.inflow);
+            row.insertCell().textContent = formatIndianNumber(mainData.outflow);
+            row.insertCell().textContent = formatIndianNumber(mainData.net);
+            row.insertCell().textContent = `${contribution.toFixed(2)}%`;
+
+            // Comparison columns
+            if (canCompare) {
+                row.insertCell().textContent = formatIndianNumber(compData.inflow);
+                row.insertCell().textContent = formatIndianNumber(compData.net);
+            }
+        });
+    }
+
+    // 9. Populate Monthly Breakup
+    // When comparison is active, only show months in the main report (and their comparison period)
+    const allMonthsInReport = new Set([
+        ...Object.keys(mainReport.monthlyData),
+        ...Object.keys(comparisonReport.monthlyData)
+    ]);
+    const sortedMonths = Array.from(allMonthsInReport).sort();
+
+    monthlyTableBody.innerHTML = '';
+    if (sortedMonths.length === 0) {
+        noMonthlyDataMessage.style.display = 'block';
+    } else {
+        noMonthlyDataMessage.style.display = 'none';
+        sortedMonths.forEach(monthKey => {
+            const mainData = mainReport.monthlyData[monthKey] || { inflow: 0, outflow: 0, net: 0 };
+            
+            // For monthly breakup, the comparison data isn't a simple month-to-month map 
+            // since the main report might span multiple months, and the comparison is for the *period*.
+            // We only show monthly data if it belongs to the *main* selected period.
+            if (selectedMonth && monthKey !== selectedMonth) {
+                return; // Only show the selected month if a month is selected
+            }
+            if (!selectedMonth && !mainReport.monthlyData[monthKey]) {
+                return; // If 'All Months' and this month only appears in comparison, skip it.
+            }
+            
+            const monthName = new Date(monthKey + '-01').toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+            
+            const row = monthlyTableBody.insertRow();
+            row.insertCell().textContent = monthName;
+            row.insertCell().textContent = formatIndianNumber(mainData.inflow);
+            row.insertCell().textContent = formatIndianNumber(mainData.outflow);
+            row.insertCell().textContent = formatIndianNumber(mainData.net);
+
+            // Comparison columns - only show overall comparison figures in the monthly table if there's only one month selected
+            if (canCompare && !selectedMonth) {
+                // Not ideal, but to avoid complex logic, we'll only display comparison columns 
+                // in the monthly table when *no* month is selected (showing overall period)
+                row.insertCell().textContent = '-';
+                row.insertCell().textContent = '-';
+            } else if (canCompare && selectedMonth) {
+                // If a month IS selected, show the overall comparison summary figures in a single row or skip
+                // Given the current table structure, it's better to show the main monthly breakdown only, 
+                // and the comparison in the dedicated summary section above. 
+                // We'll hide the comparison columns for now, as monthly comparison for a *period* is complex.
+                // The current implementation keeps the columns but shows no data for monthly when a single month is selected.
+                row.insertCell().textContent = '-'; 
+                row.insertCell().textContent = '-';
+            } else if (canCompare) {
+                 row.insertCell().textContent = '-';
+                 row.insertCell().textContent = '-';
+            }
+            
+        });
+    }
+
+    // 10. Hide detailed entries on report re-generation
+    detailedEntriesContainer.style.display = 'none';
+}
+
+
+// --- Detailed Entries View (Unchanged, but uses the new getFilteredData) ---
 function viewDetailedEntries() {
-    const filteredData = getFilteredData();
+    const selectedMonth = monthSelect.value;
+    const dateRanges = getComparisonDates(selectedMonth);
+    const filteredData = getFilteredData({ start: dateRanges.reportStart, end: dateRanges.reportEnd }); // Only show main report's data
 
     detailedEntriesContainer.style.display = 'block';
 
@@ -445,6 +634,8 @@ monthSelect.addEventListener('change', generateReport);
 companySelect.addEventListener('change', generateReport);
 companySearchInput.addEventListener('input', filterCompanyList);
 viewDetailedEntriesBtn.addEventListener('click', viewDetailedEntries);
+// NEW EVENT LISTENER
+compareToPrevMonthCheckbox.addEventListener('change', generateReport);
 
 // --- Initialize the report when the page loads ---
 document.addEventListener('DOMContentLoaded', init);
