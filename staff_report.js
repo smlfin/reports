@@ -18,34 +18,34 @@ const currentDate = new Date(); // Current date and time
 const maxDataEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
 
 
-// --- DOM Elements ---
-const reportContainer = document.getElementById('report-container');
-const companySelect = document.getElementById('company-select');
-const staffSearchInput = document.getElementById('staff-search');
-const staffSelect = document.getElementById('staff-select');
-const monthSelect = document.getElementById('month-select');
+// --- DOM Elements (Declared globally, assigned in init()) ---
+let reportContainer = null; // Changed to let and null
+let companySelect = null; // Changed to let and null
+let staffSearchInput = null; // Changed to let and null
+let staffSelect = null; // Changed to let and null
+let monthSelect = null; // Changed to let and null
 // NEW: Date Range Inputs
-const startDateInput = document.getElementById('start-date');
-const endDateInput = document.getElementById('end-date');
+let startDateInput = null; // Changed to let and null
+let endDateInput = null; // Changed to let and null
 
-const totalInflowEl = document.getElementById('total-inflow');
-const totalOutflowEl = document.getElementById('total-outflow');
-const totalNetGrowthEl = document.getElementById('total-net-growth');
-const freshCustomerListEl = document.getElementById('fresh-customer-list');
+let totalInflowEl = null; // Changed to let and null
+let totalOutflowEl = null; // Changed to let and null
+let totalNetGrowthEl = null; // Changed to let and null
+let freshCustomerListEl = null; // Changed to let and null
 
-const churnRateEl = document.getElementById('churn-rate');
-const repeatBusinessListEl = document.getElementById('repeat-business-list');
+let churnRateEl = null; // Changed to let and null
+let repeatBusinessListEl = null; // Changed to let and null
 
-const monthlyTableBody = document.querySelector('#monthly-table tbody');
-const companyBreakdownTableBody = document.querySelector('#company-breakdown-table tbody');
-const productBreakdownTableBody = document.querySelector('#product-breakdown-table tbody');
-const detailedEntriesContainer = document.getElementById('detailed-entries-container');
-const backToReportBtn = document.getElementById('back-to-report-btn');
-const detailedTitleEl = document.getElementById('detailed-title');
-const detailedTableBody = document.querySelector('#detailed-table tbody');
-const showCustomerNameCheckbox = document.getElementById('show-customer-name');
-const performanceChartCanvas = document.getElementById('performance-chart');
-const cumulativePerformanceChartCanvas = document.getElementById('cumulative-performance-chart');
+let monthlyTableBody = null; // Changed to let and null
+let companyBreakdownTableBody = null; // Changed to let and null
+let productBreakdownTableBody = null; // Changed to let and null
+let detailedEntriesContainer = null; // Changed to let and null
+let backToReportBtn = null; // Changed to let and null
+let detailedTitleEl = null; // Changed to let and null
+let detailedTableBody = null; // Changed to let and null
+let showCustomerNameCheckbox = null; // Changed to let and null
+let performanceChartCanvas = null; // Changed to let and null
+let cumulativePerformanceChartCanvas = null; // Changed to let and null
 
 
 // --- Utility Functions ---
@@ -138,9 +138,128 @@ function isFreshCustomer(customerType) {
     return freshTypes.includes(String(customerType).trim().toUpperCase());
 }
 
+// Corrected Utility function to parse Company/Product from the special header names (Fixes the <OUT> issue)
+function parseCompanyAndProductFromHeader(header) {
+    const parts = header.trim().split(/\s+/); // Split by space
+    let company = null;
+    let product = null;
+    let type = null; // INF or OUT
+
+    if (parts.length >= 3) {
+        // Example: SML NCD INF, VFL GB OUT
+        company = parts[0];
+        product = parts.slice(1, parts.length - 1).join(' '); // Join all middle parts for product
+        type = parts[parts.length - 1]; // Last part is INF/OUT
+        
+    } else if (parts.length === 2 && (parts[1] === 'INF' || parts[1] === 'OUT')) {
+        // MODIFIED LOGIC: Handles simple two-word headers like LLP INF or LLP OUT
+        // Product is set to the company name (first word) to avoid 'INF' or 'OUT' as a product.
+        company = parts[0];
+        product = parts[0]; 
+        type = parts[1];
+        
+    } else if (parts.length === 2 && parts[1] === 'PURCHASE') {
+        // Example: SML PURCHASE
+        company = parts[0];
+        product = parts[1]; // Product is 'PURCHASE'
+        type = 'OUT';
+        
+    } else {
+        // Handle other headers that don't fit the pattern (e.g., 'DATE', 'INF Total', etc.)
+        return { company: null, product: null, type: null };
+    }
+
+    return { company, product, type };
+}
+
+// Utility function to get all relevant Inflow/Outflow column headers
+function getInflowOutflowHeaders() {
+    const infOutHeaders = [];
+    headers.forEach(header => {
+        const { company, type } = parseCompanyAndProductFromHeader(header);
+        // Only include headers that successfully parse into a Company and an INF/OUT type
+        if (company && (type === 'INF' || type === 'OUT')) {
+            infOutHeaders.push(header);
+        }
+    });
+    return infOutHeaders;
+}
+
+/**
+ * Maps the short product code (e.g., 'BD', 'FD') to its full display name.
+ * @param {string} productCode - The short product code.
+ * @returns {string} The full product display name.
+ */
+function mapProductToDisplayName(productCode) {
+    if (!productCode) return 'No Product Specified';
+
+    const code = productCode.toUpperCase();
+    
+    switch (code) {
+        case 'BD':
+        case 'SD':
+            return 'Subdebt';
+        case 'FD':
+            return 'Fixed Deposit';
+        case 'GB':
+            return 'Golden Bond';
+        case 'LLP':
+            return 'LLP';
+        case 'NCD':
+            return 'NCD';
+        case 'PURCHASE':
+            return 'Purchase'; // Assuming 'PURCHASE' is an outflow type, keep it separate
+        default:
+            return productCode; // Return original if not in the map
+    }
+}
+
+
+// --- New Collapse Function ---
+/**
+ * Toggles the collapsed state of the content next to the header element.
+ * @param {HTMLElement} headerElement - The clickable header element (e.g., h3).
+ */
+function toggleCollapse(headerElement) {
+    const content = headerElement.nextElementSibling; // collapsible-content is the next sibling
+    
+    headerElement.classList.toggle('collapsed');
+    content.classList.toggle('collapsed');
+}
+
+
 // --- Main Data Fetching and Initialization ---
 async function init() {
     try {
+        // NEW: DOM Element Assignments (Guaranteed to run after DOM is loaded)
+        reportContainer = document.getElementById('report-container');
+        companySelect = document.getElementById('company-select');
+        staffSearchInput = document.getElementById('staff-search');
+        staffSelect = document.getElementById('staff-select');
+        monthSelect = document.getElementById('month-select');
+        startDateInput = document.getElementById('start-date');
+        endDateInput = document.getElementById('end-date');
+
+        totalInflowEl = document.getElementById('total-inflow');
+        totalOutflowEl = document.getElementById('total-outflow');
+        totalNetGrowthEl = document.getElementById('total-net-growth');
+        freshCustomerListEl = document.getElementById('fresh-customer-list');
+
+        churnRateEl = document.getElementById('churn-rate');
+        repeatBusinessListEl = document.getElementById('repeat-business-list');
+
+        monthlyTableBody = document.querySelector('#monthly-table tbody');
+        companyBreakdownTableBody = document.querySelector('#company-breakdown-table tbody');
+        productBreakdownTableBody = document.querySelector('#product-breakdown-table tbody');
+        detailedEntriesContainer = document.getElementById('detailed-entries-container');
+        backToReportBtn = document.getElementById('back-to-report-btn');
+        detailedTitleEl = document.getElementById('detailed-title');
+        detailedTableBody = document.querySelector('#detailed-table tbody');
+        showCustomerNameCheckbox = document.getElementById('show-customer-name');
+        performanceChartCanvas = document.getElementById('performance-chart');
+        cumulativePerformanceChartCanvas = document.getElementById('cumulative-performance-chart');
+
+
         // --- Event Listeners (Moved here from the end of the file for reliability) ---
         companySelect.addEventListener('change', () => {
             filterStaffList();
@@ -407,7 +526,7 @@ function generateReport() {
         return true;
     });
 
-    // Performance Summary
+    // Performance Summary (Still using aggregate columns for overall summary)
     let totalInflow = 0;
     let totalOutflow = 0;
     let totalNetGrowth = 0;
@@ -488,6 +607,8 @@ function generateReport() {
         if (!date) return;
         const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
         if (!monthlyData[yearMonth]) {
+            // Note: This still uses aggregate columns for the Monthly Breakup Table
+            // as the individual columns are too numerous for a clean monthly table.
             monthlyData[yearMonth] = { inflow: 0, outflow: 0, net: 0, entries: [] };
         }
         monthlyData[yearMonth].inflow += getValueFromRow(row, headers, 'INF Total');
@@ -497,8 +618,11 @@ function generateReport() {
     });
 
     renderMonthlyTable(monthlyData);
+    
+    // Using the refined calculation methods
     renderCompanyBreakdown(filteredDataForOverall);
     renderProductBreakdown(filteredDataForOverall);
+    
     renderCharts(monthlyData);
 }
 
@@ -524,22 +648,35 @@ function renderMonthlyTable(monthlyData) {
     });
 }
 
+// Company Breakdown: Uses column headers for accurate company-level flow
 function renderCompanyBreakdown(data) {
     const companyData = {};
-    const companyColIndex = headers.indexOf('COMPANY NAME');
+    const infOutHeaders = getInflowOutflowHeaders();
+
     data.forEach(row => {
-        const companyName = row[companyColIndex];
-        if (!companyData[companyName]) {
-            companyData[companyName] = { inflow: 0, outflow: 0, net: 0 };
-        }
-        companyData[companyName].inflow += getValueFromRow(row, headers, 'INF Total');
-        companyData[companyName].outflow += getValueFromRow(row, headers, 'OUT Total');
-        companyData[companyName].net += getValueFromRow(row, headers, 'Net');
+        infOutHeaders.forEach(header => {
+            const { company, type } = parseCompanyAndProductFromHeader(header);
+            const value = getValueFromRow(row, headers, header);
+            
+            if (company && value !== 0) {
+                if (!companyData[company]) {
+                    companyData[company] = { inflow: 0, outflow: 0, net: 0 };
+                }
+                
+                if (type === 'INF') {
+                    companyData[company].inflow += value;
+                } else if (type === 'OUT') {
+                    companyData[company].outflow += value;
+                }
+                // Net is calculated later: inflow - outflow
+            }
+        });
     });
 
     companyBreakdownTableBody.innerHTML = '';
     Object.keys(companyData).sort().forEach(companyName => {
         const data = companyData[companyName];
+        data.net = data.inflow - data.outflow; // Calculate Net Growth
         const netClass = data.net >= 0 ? 'positive' : 'negative';
 
         const tr = document.createElement('tr');
@@ -553,22 +690,39 @@ function renderCompanyBreakdown(data) {
     });
 }
 
+// Product Breakdown: Uses column headers AND the new display name mapping
 function renderProductBreakdown(data) {
     const productData = {};
-    const productColIndex = headers.indexOf('PRODUCT NAME');
+    const infOutHeaders = getInflowOutflowHeaders();
+
     data.forEach(row => {
-        const productName = row[productColIndex] || 'No Product Specified';
-        if (!productData[productName]) {
-            productData[productName] = { inflow: 0, outflow: 0, net: 0 };
-        }
-        productData[productName].inflow += getValueFromRow(row, headers, 'INF Total');
-        productData[productName].outflow += getValueFromRow(row, headers, 'OUT Total');
-        productData[productName].net += getValueFromRow(row, headers, 'Net');
+        infOutHeaders.forEach(header => {
+            const { product, type } = parseCompanyAndProductFromHeader(header);
+            const value = getValueFromRow(row, headers, header);
+
+            // Use the new mapping function to get the display name for grouping
+            const productName = mapProductToDisplayName(product);
+            
+            if (product && value !== 0) {
+                // Group by the mapped product name
+                if (!productData[productName]) {
+                    productData[productName] = { inflow: 0, outflow: 0, net: 0 };
+                }
+                
+                if (type === 'INF') {
+                    productData[productName].inflow += value;
+                } else if (type === 'OUT') {
+                    productData[productName].outflow += value;
+                }
+                // Net is calculated later: inflow - outflow
+            }
+        });
     });
 
     productBreakdownTableBody.innerHTML = '';
     Object.keys(productData).sort().forEach(productName => {
         const data = productData[productName];
+        data.net = data.inflow - data.outflow; // Calculate Net Growth
         const netClass = data.net >= 0 ? 'positive' : 'negative';
 
         const tr = document.createElement('tr');
