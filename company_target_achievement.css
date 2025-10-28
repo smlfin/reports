@@ -1,3 +1,74 @@
+/* --- 1. NAVIGATION STYLING (NEWLY ADDED) --- */
+nav {
+    background-color: #343a40; /* Dark background for navbar */
+    padding: 0;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.main-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex; /* Horizontal alignment */
+    justify-content: flex-start;
+}
+
+.main-menu li {
+    position: relative;
+}
+
+.main-menu a {
+    display: block;
+    padding: 15px 20px;
+    text-decoration: none;
+    color: #ffffff;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.main-menu a:hover,
+.main-menu li.has-submenu:hover > a {
+    background-color: #007bff; /* Primary color on hover */
+    color: #ffffff;
+}
+
+/* Submenu/Dropdown Styling */
+.submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    position: absolute;
+    top: 100%; /* Position below the parent item */
+    left: 0;
+    background-color: #343a40; 
+    min-width: 250px; 
+    z-index: 1000; /* Ensure it stays above other content */
+    border-top: 2px solid #007bff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: none; /* Hidden by default */
+}
+
+.has-submenu:hover > .submenu {
+    display: block; /* Show submenu on hover */
+}
+
+.submenu li {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.submenu a {
+    padding: 12px 20px;
+    color: #cccccc;
+}
+
+.submenu a:hover {
+    background-color: #007bff;
+    color: #ffffff;
+}
+
+/* --- 2. GENERAL REPORT STYLING (Existing, unchanged) --- */
+
 /* General Report Container Styling */
 .report-container {
     max-width: 1200px;
@@ -10,7 +81,7 @@
 
 h1 {
     text-align: center;
-    color: #2c3e50; /* Darker blue-grey for headings */
+    color: #2c3e50;
     margin-bottom: 30px;
     font-size: 2.5em;
     font-weight: 600;
@@ -28,27 +99,27 @@ h1 {
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 10px;
-    align-items: flex-end; /* Align items to the bottom */
+    align-items: flex-end;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
-    flex: 1; /* Allow filter groups to grow */
-    min-width: 200px; /* Minimum width for responsiveness */
+    flex: 1;
+    min-width: 200px;
 }
 
 .report-controls label {
     font-weight: 600;
     margin-bottom: 8px;
-    color: #495057; /* Slightly darker text for labels */
+    color: #495057;
     font-size: 0.95em;
 }
 
 .report-controls select,
 .report-controls input[type="text"],
-.report-controls input[type="date"] { /* MODIFIED: Added input[type="date"] */
+.report-controls input[type="date"] {
     padding: 12px 15px;
     border: 1px solid #ced4da;
     border-radius: 8px;
@@ -60,130 +131,106 @@ h1 {
 
 .report-controls select:focus,
 .report-controls input[type="text"]:focus,
-.report-controls input[type="date"]:focus { /* MODIFIED: Added input[type="date"] */
+.report-controls input[type="date"]:focus {
     border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     outline: none;
 }
 
-.report-controls button {
-    padding: 12px 25px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1.05em;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    align-self: flex-end; /* Align button to the bottom within its flex container */
-    margin-top: auto; /* Push button to the bottom if filter groups vary in height */
-}
-
-.report-controls button:hover {
-    background-color: #0056b3;
-    transform: translateY(-2px);
-}
-
-.report-controls button:active {
-    transform: translateY(0);
-}
-
-/* Overall Summary Section */
-.overall-summary-section {
-    margin-top: 40px;
+/* Summary Cards Section */
+.overall-summary-section h2 {
+    color: #007bff;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .summary-cards {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-around;
-    gap: 25px;
-    margin-top: 20px;
+    gap: 20px;
+    justify-content: space-between;
+    margin-bottom: 30px;
 }
 
 .summary-card {
-    background-color: #e9f5ff; /* Light blue background for cards */
-    border: 1px solid #b3d9ff;
-    border-radius: 10px;
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    border-left: 5px solid #007bff;
+    border-radius: 8px;
     padding: 20px;
-    flex: 1;
-    min-width: 250px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    flex-basis: calc(25% - 15px);
+    min-width: 200px;
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .summary-card h4 {
+    color: #6c757d;
     margin-top: 0;
-    color: #007bff;
-    font-size: 1.1em;
-    font-weight: 500;
+    font-size: 1em;
+    text-transform: uppercase;
 }
 
 .summary-card p {
-    font-size: 2.2em;
+    font-size: 1.8em;
     font-weight: 700;
+    color: #343a40;
     margin: 5px 0 0 0;
-    color: #2c3e50;
 }
 
+/* Color coding for performance */
 .summary-card p.positive {
-    color: #28a745; /* Green for positive numbers */
+    color: #28a745;
 }
 
 .summary-card p.negative {
-    color: #dc3545; /* Red for negative numbers */
+    color: #dc3545;
 }
 
-/* Report Table Styling */
-.report-section {
-    margin-top: 40px;
-    padding: 25px;
-    background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
+/* Table Styling */
 .report-section h2 {
-    color: #34495e;
-    font-size: 1.8em;
-    margin-bottom: 20px;
-    border-bottom: 1px dashed #e0e0e0;
-    padding-bottom: 10px;
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 15px;
 }
 
 .table-responsive {
     overflow-x: auto;
-    margin-top: 20px;
 }
 
 .data-table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    min-width: 700px;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.9em;
 }
 
 .data-table th, .data-table td {
-    padding: 15px;
+    padding: 12px 15px;
     text-align: left;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .data-table thead th {
-    background-color: #eaf4ff; /* Lighter blue for table header */
-    color: #34495e;
+    background-color: #007bff;
+    color: #ffffff;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.9em;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    font-size: 0.85em;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.data-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
 }
 
 .data-table tbody tr:hover {
-    background-color: #f6faff; /* Very light hover effect */
+    background-color: #e9ecef;
 }
 
+/* Color coding for table rows/cells */
 .data-table td.positive {
     color: #28a745;
     font-weight: 600;
@@ -194,87 +241,16 @@ h1 {
     font-weight: 600;
 }
 
-.data-table tbody tr:last-child td {
-    border-bottom: none;
-}
 
-
-/* Info and Error Messages */
+/* Info Message */
 .info-message {
     text-align: center;
     padding: 20px;
-    border: 1px dashed #ced4da;
-    background-color: #f8f9fa;
-    border-radius: 8px;
     color: #6c757d;
-    margin-top: 20px;
-    font-style: italic;
-}
-
-
-/* Modal Styles */
-.modal-overlay {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1000; /* Sit on top */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
-    display: flex;
-    justify-content: center; /* Center content horizontally */
-    align-items: center; /* Center content vertically */
-    padding: 20px; /* Padding around the content for smaller screens */
-    box-sizing: border-box; /* Include padding in width/height */
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: auto; /* Auto margin for centering in old browsers */
-    padding: 25px;
-    border: 1px solid #888;
-    width: 80%; /* Could be a fixed width or max-width */
-    max-width: 1000px; /* Increased max width for better table view */
-    border-radius: 10px;
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
-    position: relative; /* Needed for positioning close button */
-    overflow-y: auto; /* Enable scroll for modal content if it's too long */
-    max-height: 90vh; /* Max height to prevent content from going off screen */
-}
-
-.close-button {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    cursor: pointer;
-    transition: color 0.3s ease;
-}
-
-.close-button:hover,
-.close-button:focus {
-    color: #000;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.report-section-modal {
-    /* Styles for the report section content inside the modal */
-    padding: 0;
-    margin: 0;
-    background-color: transparent;
-    box-shadow: none;
-}
-
-.report-section-modal h2 {
-    /* Style for the modal title */
-    border-bottom: 2px solid #e9ecef;
-    padding-bottom: 15px;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    margin-top: 15px;
     margin-bottom: 20px;
 }
 
@@ -293,59 +269,28 @@ h1 {
 
 @media (max-width: 768px) {
     .report-controls {
-        flex-direction: column; /* Stack filters vertically on smaller screens */
+        flex-direction: column;
         align-items: stretch;
         padding: 15px;
     }
 
     .filter-group {
-        min-width: unset; /* Remove min-width on small screens */
-        width: 100%; /* Full width for filter groups */
-    }
-
-    .report-controls button {
-        width: 100%; /* Full width button */
-        margin-top: 15px;
+        min-width: unset;
+        width: 100%;
     }
 
     .summary-cards {
-        flex-direction: column; /* Stack summary cards vertically */
+        flex-direction: column;
         gap: 15px;
     }
 
     .summary-card {
-        min-width: unset; /* Remove min-width */
-        width: 100%; /* Full width for cards */
+        min-width: unset;
+        width: 100%;
         padding: 15px;
     }
 
     .summary-card p {
-        font-size: 1.8em;
-    }
-
-    .report-section h2 {
-        font-size: 1.6em;
-    }
-
-    .report-section th,
-    .report-section td {
-        padding: 8px 10px;
-        font-size: 0.85em;
-    }
-
-    .modal-content {
-        max-width: 95%;
-        padding: 20px;
-    }
-}
-
-@media (max-width: 480px) {
-    .main-menu {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .main-menu > li {
-        margin: 5px 0;
+        font-size: 1.5em;
     }
 }
