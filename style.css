@@ -402,3 +402,49 @@ nav {
         font-size: 0.9em;
     }
 }
+/* --- Collapsible Elements Styling --- */
+.collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    margin-top: 0;
+    margin-bottom: 0; 
+    color: #0056b3; 
+    transition: background-color 0.3s;
+}
+
+.collapsible-header:hover {
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.collapse-icon {
+    font-size: 1.2em; 
+    font-weight: bold;
+    transition: transform 0.3s ease;
+    margin-left: 10px;
+}
+
+/* Icon rotation for collapsed state (points right when collapsed) */
+.collapsible-header.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.collapsible-content {
+    /* Set an initial max-height for smooth transition (Large value when OPEN) */
+    max-height: 1000px; 
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, padding-bottom 0.3s ease-in-out;
+    padding-bottom: 10px; 
+}
+
+.collapsible-content.collapsed {
+    /* Shrink max-height to 0 and remove padding when CLOSED */
+    max-height: 0;
+    padding-bottom: 0; 
+}
