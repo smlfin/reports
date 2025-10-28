@@ -56,11 +56,15 @@
                 <label for="company-select">Select Company:</label>
                 <select id="company-select"></select>
             </div>
+            <div class="filter-group comparison-control">
+                <label for="compare-to-prev-month">Compare to Previous Month (Same Day Period):</label>
+                <input type="checkbox" id="compare-to-prev-month">
+            </div>
             <button id="view-detailed-entries-btn">View Detailed Entries</button>
         </div>
 
         <div class="summary-section">
-            <h2>Overall Summary (April 2025 - Current Month)</h2>
+            <h2>Overall Summary (<span id="summary-date-range">April 2025 - Current Month</span>)</h2>
             <div class="summary-cards">
                 <div class="card">
                     <h3>Total Inflow</h3>
@@ -73,6 +77,24 @@
                 <div class="card">
                     <h3>Total Net Growth</h3>
                     <p id="overall-total-net-growth">0</p>
+                </div>
+            </div>
+
+            <div id="comparison-summary" style="display: none; margin-top: 20px;">
+                <h2>Comparison Summary (<span id="comparison-date-range">Prev Month Period</span>)</h2>
+                <div class="summary-cards comparison-cards">
+                    <div class="card comparison-card">
+                        <h3>Prev Period Inflow</h3>
+                        <p id="comparison-total-inflow">0</p>
+                    </div>
+                    <div class="card comparison-card">
+                        <h3>Prev Period Outflow</h3>
+                        <p id="comparison-total-outflow">0</p>
+                    </div>
+                    <div class="card comparison-card">
+                        <h3>Prev Period Net Growth</h3>
+                        <p id="comparison-total-net-growth">0</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -88,6 +110,8 @@
                             <th>Total Outflow</th>
                             <th>Total Net Growth</th>
                             <th>% Contribution to Total Net Growth</th>
+                            <th class="comparison-header" style="display: none;">Prev Month Inflow</th>
+                            <th class="comparison-header" style="display: none;">Prev Month Net Growth</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -107,6 +131,8 @@
                             <th>Inflow</th>
                             <th>Outflow</th>
                             <th>Net Growth</th>
+                            <th class="comparison-header" style="display: none;">Prev Month Inflow</th>
+                            <th class="comparison-header" style="display: none;">Prev Month Net Growth</th>
                         </tr>
                     </thead>
                     <tbody>
