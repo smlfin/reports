@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performer Product Study</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="new_style.css">
+    <link rel="stylesheet" href="performer_product_study.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav>
+        <ul class="main-menu">
+            <li><a href="index.html">Home</a></li>
+            <li class="has-submenu">
+                <a href="#">Company Reports</a>
+                <ul class="submenu">
+                    <li><a href="company_inflow_outflow.html">Company-wise Inflow/Outflow Report</a></li>
+                    <li><a href="company_report_branch_performance.html">Branch Performance Report</a></li>
+                    <li><a href="branch_ranker_report.html">Branch Ranker Report</a></li>
+                    <li><a href="company_ccw.html">Company & Channel Wise (CCW) Report</a></li>
+                    <li><a href="company_target_achievement.html">Company Target vs. Achievement</a></li>
+                    <li><a href="lastfin.html">Last Financial Year</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Staff Reports</a>
+                <ul class="submenu">
+                    <li><a href="staff_report.html">Individual Staff Drilldown</a></li>
+                    <li><a href="resigned_staff_report.html">Resigned Staff Analysis Report</a></li>
+                    <li><a href="employee_participation_report.html">Employee Participation Report</a></li>
+                    <li><a href="gainers_losers_report.html">Gainers & Losers</a></li>
+                    <li><a href="performer_product_study.html">Performer Product Study</a></li>
+                </ul>
+            </li>
+            <li class="has-submenu">
+                <a href="#">Other Reports</a>
+                <ul class="submenu">
+                    <li><a href="fresh_old_report.html">Fresh/Old Customer Report</a></li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+
+    <h1>Analysis of Top Performers and Product Trends</h1>
+    <div class="report-controls">
+        <div class="filter-group">
+            <label for="min-net-growth">Minimum Net Growth for Performer (₹):</label>
+            <input type="number" id="min-net-growth" value="2000000" min="100000" step="100000"> 
+        </div>
+        <div class="filter-group">
+            <button onclick="generateStudy()">Run Analysis</button>
+        </div>
+    </div>
+
+
+    <div id="report-container" class="report-container hidden">
+
+        <div class="report-section" id="performer-summary-section">
+            <h2>Performer Summary <span id="performer-count"></span></h2>
+            <p>Performers are staff with a cumulative Net Growth of **₹<span id="target-net-growth">20,000,000</span>** or more.</p>
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Inflow (Performers)</h3>
+                    <p id="performer-total-inflow"></p>
+                </div>
+                <div class="card">
+                    <h3>Total Net Growth (Performers)</h3>
+                    <p id="performer-total-net-growth"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="report-section" id="performer-list-section">
+            <h2>List of Performers</h2>
+            <table id="performer-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Staff Name</th>
+                        <th>Total Net Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="report-section" id="product-breakdown-section">
+            <h2>Product Breakdown of Performers (Net Growth)</h2>
+            <div class="product-chart-container">
+                <canvas id="product-breakdown-chart"></canvas>
+            </div>
+            <table id="product-breakdown-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Product Category</th>
+                        <th>Total Inflow</th>
+                        <th>Total Outflow</th>
+                        <th>Net Growth</th>
+                        <th>% of Performer's Total Net</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script src="performer_product_study.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+/* performer_product_study.css */
+
+/* General styles for this report */
+
+.product-chart-container {
+    max-width: 600px; /* Constrain chart size for readability */
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #f4f4f4;
+    border-radius: 8px;
+}
+
+/* Specific styling for the Run Analysis button in controls */
+.report-controls button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+.report-controls button:hover {
+    background-color: #0056b3;
+}
+
+/* Ensure filter input size is consistent */
+#min-net-growth {
+    min-width: 200px;
+}
