@@ -317,9 +317,9 @@ function generateReport() {
 
         if (!companyName || !staffName) return;
 
-        // --- Participation Definition: Only count if Inflow > 0 ---
-        if (inflow <= 0) return;
-        // --------------------------------------------------------
+        // --- Participation Definition: Only count if Inflow >= 25000 (User Request) ---
+        if (inflow < 25000) return;
+        // -----------------------------------------------------------------------------
 
         // 1. Calculate Overall Unique Staff for the ENTIRE filtered view (e.g., the selected month)
         overallUniqueStaff.add(staffName);
@@ -476,9 +476,9 @@ function viewDetailedEntries() {
     filteredData.forEach(row => {
         const inflow = parseNumericalValue(row[infTotalColIndex]);
 
-        // --- NEW LOGIC: Only count participation if Inflow > 0 ---
-        if (inflow <= 0) return; 
-        // --------------------------------------------------------
+        // --- NEW LOGIC: Only count participation if Inflow >= 25000 (User Request) ---
+        if (inflow < 25000) return; 
+        // ---------------------------------------------------------------------------
 
         const monthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
         const companyName = row[companyColIndex];
@@ -510,9 +510,9 @@ function viewDetailedEntries() {
     filteredData.forEach(rowData => {
         const inflow = parseNumericalValue(rowData[infTotalColIndex]);
 
-        // --- NEW LOGIC: Only render rows with Inflow > 0 ---
-        if (inflow <= 0) return;
-        // ----------------------------------------------------
+        // --- NEW LOGIC: Only render rows with Inflow >= 25000 (User Request) ---
+        if (inflow < 25000) return;
+        // ----------------------------------------------------------------------
 
         const tr = document.createElement('tr');
         headers.forEach((header, index) => {
@@ -606,9 +606,9 @@ function showEmployeeDrilldownModal(companyName, monthKey, type, employeeSet) {
         .forEach(row => {
             const inflow = parseNumericalValue(row[infTotalColIndex]);
 
-            // --- Enforce Participation: Only include transactions with Inflow > 0 in drilldown ---
-            if (inflow <= 0) return;
-            // ---------------------------------------------------------------------------------
+            // --- Enforce Participation: Only include transactions with Inflow >= 25000 (User Request) in drilldown ---
+            if (inflow < 25000) return;
+            // -----------------------------------------------------------------------------------------------------
 
             const rowMonthKey = `${row[dateColIndex].getFullYear()}-${String(row[dateColIndex].getMonth() + 1).padStart(2, '0')}`;
             const outflow = parseNumericalValue(row[outTotalColIndex]);
@@ -673,7 +673,7 @@ function showEmployeeDrilldownModal(companyName, monthKey, type, employeeSet) {
         // This case should now only happen if an employee somehow had a zero/negative inflow in a transaction
         // that was incorrectly categorized as participating, which the filter above prevents.
         noEmployeeDrilldownDataMessage.style.display = 'block';
-        noEmployeeDrilldownDataMessage.textContent = `No valid (Inflow > 0) participation data found for ${type} employee(s) in ${new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' })}.`;
+        noEmployeeDrilldownDataMessage.textContent = `No valid (Inflow >= 25,000) participation data found for ${type} employee(s) in ${new Date(monthKey).toLocaleString('en-US', { year: 'numeric', month: 'long' })}.`;
     }
 }
 
