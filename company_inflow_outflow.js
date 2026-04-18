@@ -8,13 +8,17 @@ let allData = []; // Stores all parsed CSV rows
 let headers = []; // Stores CSV headers
 let allCompanyNames = []; // Stores all unique company names for search functionality
 
-// --- Fixed Date Range for Data Validity (April 2025 to Current Month) ---
-const dataStartDate = new Date('2025-04-01T00:00:00'); // April 1, 2025, 00:00:00 local time
+// --- Dynamic Date Range (driven by FY selector) ---
 const currentDate = new Date(); // Current date and time
-const dataEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59); // End of the current month
+
+// Derive earliest possible data start: April of the year when this app was first deployed.
+// We build the FY list dynamically so no hard-coded single start date is needed here.
+// The dataStartDate used in filtering is computed per FY selection.
 
 // --- DOM Elements ---
-const monthSelect = document.getElementById('month-select');
+const fySelect = document.getElementById('fy-select');
+const monthFromSelect = document.getElementById('month-from-select');
+const monthToSelect = document.getElementById('month-to-select');
 const companySearchInput = document.getElementById('company-search');
 const companySelect = document.getElementById('company-select');
 const viewDetailedEntriesBtn = document.getElementById('view-detailed-entries-btn');
@@ -162,9 +166,9 @@ async function init() {
 
             if (dateColIndex !== -1 && parsedRow[dateColIndex]) {
                 const dateObj = parseDate(parsedRow[dateColIndex]);
-                // Filter rows based on the date range (April 2025 to end of current month)
-                if (dateObj && dateObj >= dataStartDate && dateObj <= dataEndDate) {
-                    parsedRow[dateColIndex] = dateObj; // Replace date string with Date object
+                // Accept any row with a valid date; the FY/month selectors control the visible range
+                if (dateObj) {
+                    parsedRow[dateColIndex] = dateObj;
                     return parsedRow;
                 }
             }
@@ -179,7 +183,34 @@ async function init() {
     }
 }
 
-// --- Filter Population (Unchanged) ---
+// --- Helper: Get FY label from a year (April YYYY - March YYYY+1) ---
+function getFYLabel(startYear) {
+    return `FY ${startYear}-${String(startYear + 1).slice(-2)}`;
+}
+
+// --- Helper: Get FY start year from a Date ---
+function getFYStartYear(date) {
+    return date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+// --- Helper: Get months in a FY as array of {value:'YYYY-MM', label:'Month YYYY'} ---
+function getFYMonths(fyStartYear) {
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+        const month = (3 + i) % 12; // April=3, May=4, ..., March=2
+        const year = i < 9 ? fyStartYear : fyStartYear + 1; // Apr–Dec = start year, Jan–Mar = start+1
+        const value = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const label = new Date(year, month, 1).toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        // Only include months up to the current month
+        const monthDate = new Date(year, month, 1);
+        if (monthDate <= currentDate) {
+            months.push({ value, label, year, month });
+        }
+    }
+    return months;
+}
+
+// --- Filter Population ---
 function populateFilters() {
     const companies = new Set();
     const companyColIndex = headers.indexOf('COMPANY NAME');
@@ -191,25 +222,70 @@ function populateFilters() {
     });
 
     allCompanyNames = Array.from(companies).sort();
-    filterCompanyList(); // Populate company select initially (all companies)
+    filterCompanyList();
 
-    // Populate Month Select from April 2025 to the current month
-    monthSelect.innerHTML = '<option value="">All Months</option>';
+    // Build FY list: find earliest date in data, list all FYs from then to current FY
+    const dateColIndex = headers.indexOf('DATE');
+    let earliestDate = currentDate;
+    allData.forEach(row => {
+        const d = row[dateColIndex];
+        if (d && d < earliestDate) earliestDate = d;
+    });
 
-    let currentMonthIterator = new Date(dataStartDate.getFullYear(), dataStartDate.getMonth(), 1); // Start from April 2025
-    while (currentMonthIterator <= currentDate) { // Iterate up to the current month
-        const year = currentMonthIterator.getFullYear();
-        const month = (currentMonthIterator.getMonth() + 1).toString().padStart(2, '0');
-        const optionValue = `${year}-${month}`;
-        const optionText = currentMonthIterator.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+    const firstFYStart = getFYStartYear(earliestDate);
+    const currentFYStart = getFYStartYear(currentDate);
 
+    fySelect.innerHTML = '';
+    for (let fy = firstFYStart; fy <= currentFYStart; fy++) {
         const option = document.createElement('option');
-        option.value = optionValue;
-        option.textContent = optionText;
-        monthSelect.appendChild(option);
-
-        currentMonthIterator.setMonth(currentMonthIterator.getMonth() + 1);
+        option.value = fy;
+        option.textContent = getFYLabel(fy);
+        fySelect.appendChild(option);
     }
+    // Default to current FY
+    fySelect.value = currentFYStart;
+
+    populateMonthRangeSelectors(true);
+}
+
+// --- Populate From/To month selectors based on selected FY ---
+function populateMonthRangeSelectors(isInit = false) {
+    const fyStartYear = parseInt(fySelect.value);
+    const fyMonths = getFYMonths(fyStartYear);
+
+    monthFromSelect.innerHTML = '';
+    monthToSelect.innerHTML = '';
+
+    fyMonths.forEach(m => {
+        const optFrom = document.createElement('option');
+        optFrom.value = m.value;
+        optFrom.textContent = m.label;
+        monthFromSelect.appendChild(optFrom);
+
+        const optTo = document.createElement('option');
+        optTo.value = m.value;
+        optTo.textContent = m.label;
+        monthToSelect.appendChild(optTo);
+    });
+
+    // Default: From = April of selected FY, To = latest available month in FY
+    if (fyMonths.length > 0) {
+        monthFromSelect.value = fyMonths[0].value;
+        monthToSelect.value = fyMonths[fyMonths.length - 1].value;
+    }
+}
+
+// --- Ensure To month is never before From month ---
+function syncToMonth() {
+    const fromVal = monthFromSelect.value;
+    const toVal = monthToSelect.value;
+    if (toVal < fromVal) {
+        monthToSelect.value = fromVal;
+    }
+    // Disable "to" options that are before "from"
+    Array.from(monthToSelect.options).forEach(opt => {
+        opt.disabled = opt.value < fromVal;
+    });
 }
 
 // --- Filter Company Dropdown based on Search Input (Unchanged) ---
@@ -235,8 +311,45 @@ function filterCompanyList() {
 }
 
 
-// --- Calculate Comparison Dates ---
-function getComparisonDates(selectedMonth) {
+// --- Calculate Report and Comparison Dates from From/To range ---
+function getComparisonDates() {
+    const fromVal = monthFromSelect.value;
+    const toVal = monthToSelect.value;
+
+    if (!fromVal || !toVal) return { reportStart: null, reportEnd: null, comparisonStart: null, comparisonEnd: null };
+
+    const [fromYear, fromMonth] = fromVal.split('-').map(Number);
+    const [toYear, toMonth] = toVal.split('-').map(Number);
+
+    const reportStart = new Date(fromYear, fromMonth - 1, 1, 0, 0, 0);
+
+    // End: if "to month" is current month, cap at today; else last day of to-month
+    let reportEnd;
+    const isCurrentMonth = (toYear === currentDate.getFullYear() && toMonth === currentDate.getMonth() + 1);
+    if (isCurrentMonth) {
+        reportEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
+    } else {
+        const lastDay = new Date(toYear, toMonth, 0).getDate();
+        reportEnd = new Date(toYear, toMonth - 1, lastDay, 23, 59, 59);
+    }
+
+    // Comparison: shift the entire range back by one month
+    const compFromYear = fromMonth === 1 ? fromYear - 1 : fromYear;
+    const compFromMonth = fromMonth === 1 ? 12 : fromMonth - 1;
+    const compToYear = toMonth === 1 ? toYear - 1 : toYear;
+    const compToMonth = toMonth === 1 ? 12 : toMonth - 1;
+
+    const comparisonStart = new Date(compFromYear, compFromMonth - 1, 1, 0, 0, 0);
+
+    const compLastDay = new Date(compToYear, compToMonth, 0).getDate();
+    const compEndDay = isCurrentMonth ? Math.min(currentDate.getDate(), compLastDay) : compLastDay;
+    const comparisonEnd = new Date(compToYear, compToMonth - 1, compEndDay, 23, 59, 59);
+
+    return { reportStart, reportEnd, comparisonStart, comparisonEnd };
+}
+
+// --- OLD getComparisonDates STUB (replaced above) ---
+function _getComparisonDates_UNUSED(selectedMonth) {
     const dateColIndex = headers.indexOf('DATE');
     const selectedCompany = companySelect.value;
     let maxDay = new Date().getDate(); // Default to current day
@@ -418,17 +531,15 @@ function calculateReportFigures(data) {
 
 // --- Report Generation ---
 function generateReport() {
-    const selectedMonth = monthSelect.value;
     const isComparisonEnabled = compareToPrevMonthCheckbox.checked;
 
-    const dateColIndex = headers.indexOf('DATE');
-    const companyColIndex = headers.indexOf('COMPANY NAME');
-
     // 1. Determine Date Ranges
-    const dateRanges = getComparisonDates(selectedMonth);
+    const dateRanges = getComparisonDates();
 
     const reportRange = { start: dateRanges.reportStart, end: dateRanges.reportEnd };
     const comparisonRange = { start: dateRanges.comparisonStart, end: dateRanges.comparisonEnd };
+
+    if (!reportRange.start || !reportRange.end) return;
 
     // 2. Filter Data and Calculate Main Report Figures
     const mainData = getFilteredData(reportRange);
@@ -436,7 +547,7 @@ function generateReport() {
 
     // 3. Filter Data and Calculate Comparison Figures (if enabled and possible)
     let comparisonReport = { totalInflow: 0, totalOutflow: 0, totalNetGrowth: 0, companySummary: {}, monthlyData: {} };
-    let canCompare = isComparisonEnabled && comparisonRange.start !== null && selectedMonth;
+    let canCompare = isComparisonEnabled && comparisonRange.start !== null;
 
     if (canCompare) {
         const comparisonData = getFilteredData(comparisonRange);
@@ -448,18 +559,28 @@ function generateReport() {
     comparisonHeaders.forEach(th => th.style.display = canCompare ? 'table-cell' : 'none');
 
     // 5. Update Date Range Labels
-    if (selectedMonth) {
-        const startMonthName = reportRange.start.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
-        const endDay = reportRange.end.getDate();
-        summaryDateRangeEl.textContent = `${startMonthName} (1st - ${endDay}th)`;
-        
-        if (canCompare) {
-             const compMonthName = comparisonRange.start.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
-             const compEndDay = comparisonRange.end.getDate();
-             comparisonDateRangeEl.textContent = `${compMonthName} (1st - ${compEndDay}th)`;
-        }
+    const fromLabel = reportRange.start.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+    const toLabel = reportRange.end.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+    const endDay = reportRange.end.getDate();
+    const isSingleMonth = (monthFromSelect.value === monthToSelect.value);
+
+    if (isSingleMonth) {
+        summaryDateRangeEl.textContent = `${fromLabel} (1st - ${endDay}th)`;
     } else {
-        summaryDateRangeEl.textContent = 'April 2025 - Current Month';
+        summaryDateRangeEl.textContent = `${fromLabel} to ${toLabel}`;
+    }
+
+    if (canCompare) {
+        const compFromLabel = comparisonRange.start.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        const compToLabel = comparisonRange.end.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        const compEndDay = comparisonRange.end.getDate();
+        const isCompSingleMonth = (comparisonRange.start.getMonth() === comparisonRange.end.getMonth() &&
+                                   comparisonRange.start.getFullYear() === comparisonRange.end.getFullYear());
+        if (isCompSingleMonth) {
+            comparisonDateRangeEl.textContent = `${compFromLabel} (1st - ${compEndDay}th)`;
+        } else {
+            comparisonDateRangeEl.textContent = `${compFromLabel} to ${compToLabel}`;
+        }
     }
 
 
@@ -518,11 +639,7 @@ function generateReport() {
     }
 
     // 9. Populate Monthly Breakup
-    // When comparison is active, only show months in the main report (and their comparison period)
-    const allMonthsInReport = new Set([
-        ...Object.keys(mainReport.monthlyData),
-        ...Object.keys(comparisonReport.monthlyData)
-    ]);
+    const allMonthsInReport = new Set(Object.keys(mainReport.monthlyData));
     const sortedMonths = Array.from(allMonthsInReport).sort();
 
     monthlyTableBody.innerHTML = '';
@@ -532,16 +649,9 @@ function generateReport() {
         noMonthlyDataMessage.style.display = 'none';
         sortedMonths.forEach(monthKey => {
             const mainData = mainReport.monthlyData[monthKey] || { inflow: 0, outflow: 0, net: 0 };
-            
-            // For monthly breakup, the comparison data isn't a simple month-to-month map 
-            // since the main report might span multiple months, and the comparison is for the *period*.
-            // We only show monthly data if it belongs to the *main* selected period.
-            if (selectedMonth && monthKey !== selectedMonth) {
-                return; // Only show the selected month if a month is selected
-            }
-            if (!selectedMonth && !mainReport.monthlyData[monthKey]) {
-                return; // If 'All Months' and this month only appears in comparison, skip it.
-            }
+
+            // Only show months that belong to the main report range
+            if (!mainReport.monthlyData[monthKey]) return;
             
             const monthName = new Date(monthKey + '-01').toLocaleString('en-IN', { year: 'numeric', month: 'long' });
             
@@ -551,25 +661,10 @@ function generateReport() {
             row.insertCell().textContent = formatIndianNumber(mainData.outflow);
             row.insertCell().textContent = formatIndianNumber(mainData.net);
 
-            // Comparison columns - only show overall comparison figures in the monthly table if there's only one month selected
-            if (canCompare && !selectedMonth) {
-                // Not ideal, but to avoid complex logic, we'll only display comparison columns 
-                // in the monthly table when *no* month is selected (showing overall period)
+            if (canCompare) {
                 row.insertCell().textContent = '-';
                 row.insertCell().textContent = '-';
-            } else if (canCompare && selectedMonth) {
-                // If a month IS selected, show the overall comparison summary figures in a single row or skip
-                // Given the current table structure, it's better to show the main monthly breakdown only, 
-                // and the comparison in the dedicated summary section above. 
-                // We'll hide the comparison columns for now, as monthly comparison for a *period* is complex.
-                // The current implementation keeps the columns but shows no data for monthly when a single month is selected.
-                row.insertCell().textContent = '-'; 
-                row.insertCell().textContent = '-';
-            } else if (canCompare) {
-                 row.insertCell().textContent = '-';
-                 row.insertCell().textContent = '-';
             }
-            
         });
     }
 
@@ -580,9 +675,8 @@ function generateReport() {
 
 // --- Detailed Entries View (Unchanged, but uses the new getFilteredData) ---
 function viewDetailedEntries() {
-    const selectedMonth = monthSelect.value;
-    const dateRanges = getComparisonDates(selectedMonth);
-    const filteredData = getFilteredData({ start: dateRanges.reportStart, end: dateRanges.reportEnd }); // Only show main report's data
+    const dateRanges = getComparisonDates();
+    const filteredData = getFilteredData({ start: dateRanges.reportStart, end: dateRanges.reportEnd });
 
     detailedEntriesContainer.style.display = 'block';
 
@@ -630,7 +724,9 @@ function viewDetailedEntries() {
 }
 
 // --- Event Listeners ---
-monthSelect.addEventListener('change', generateReport);
+fySelect.addEventListener('change', () => { populateMonthRangeSelectors(); generateReport(); });
+monthFromSelect.addEventListener('change', () => { syncToMonth(); generateReport(); });
+monthToSelect.addEventListener('change', generateReport);
 companySelect.addEventListener('change', generateReport);
 companySearchInput.addEventListener('input', filterCompanyList);
 viewDetailedEntriesBtn.addEventListener('click', viewDetailedEntries);
