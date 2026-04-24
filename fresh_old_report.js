@@ -11,11 +11,12 @@ let freshStaffParticipationMap = new Map();
 let freshCustomersByStaff = new Map();
 let freshCustomerDetailsMap = new Map();
 
-// --- Fixed Date Range for Data Validity (April 2025 - March 2026) ---
-const dataStartDate = new Date('2025-04-01T00:00:00');
-const dataEndDate = new Date('2026-03-31T23:59:59');
+// --- Current Date ---
+const currentDate = new Date();
 
-// --- DOM Elements (UPDATED FOR DATE RANGE) ---
+// --- DOM Elements ---
+const fySelect = document.getElementById('fy-select');
+const dateRangeLabel = document.getElementById('date-range-label');
 const fromMonthSelect = document.getElementById('from-month-select');
 const toMonthSelect = document.getElementById('to-month-select');
 const companySelect = document.getElementById('company-select');
@@ -155,7 +156,7 @@ async function init() {
             const parsedRow = parseLine(row);
             if (dateColIndex !== -1 && parsedRow[dateColIndex]) {
                 const dateObj = parseDate(parsedRow[dateColIndex]);
-                if (dateObj && dateObj >= dataStartDate && dateObj <= dataEndDate) {
+                if (dateObj) {
                     parsedRow[dateColIndex] = dateObj;
                     return parsedRow;
                 }
@@ -171,65 +172,67 @@ async function init() {
     }
 }
 
-// --- Filter Population (UPDATED FOR DATE RANGE) ---
+// --- FY Helper Functions ---
+function getFYLabel(startYear) {
+    return `FY ${startYear}-${String(startYear + 1).slice(-2)}`;
+}
+
+function getFYStartYear(date) {
+    return date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+function getFYMonths(fyStartYear) {
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+        const month = (3 + i) % 12; // April=3 ... March=2
+        const year = i < 9 ? fyStartYear : fyStartYear + 1;
+        const value = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const label = new Date(year, month, 1).toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        const monthDate = new Date(year, month, 1);
+        if (monthDate <= currentDate) {
+            months.push({ value, label });
+        }
+    }
+    return months;
+}
+
+// --- Filter Population ---
 function populateFilters() {
     const companies = new Set();
     const branches = new Set();
 
     const companyColIndex = headers.indexOf('COMPANY NAME');
     const branchColIndex = headers.indexOf('BRANCH');
+    const dateColIndex = headers.indexOf('DATE');
+
+    // Find earliest date in data to build FY list
+    let earliestDate = currentDate;
+    allData.forEach(row => {
+        const d = row[dateColIndex];
+        if (d && d < earliestDate) earliestDate = d;
+    });
 
     allData.forEach(row => {
         if (companyColIndex !== -1) companies.add(row[companyColIndex]);
         if (branchColIndex !== -1) branches.add(row[branchColIndex]);
     });
 
-    // NEW Logic for From/To Month Select
-    fromMonthSelect.innerHTML = '';
-    toMonthSelect.innerHTML = '';
-    const monthOptions = [];
+    // Build FY selector
+    const firstFYStart = getFYStartYear(earliestDate);
+    const currentFYStart = getFYStartYear(currentDate);
 
-    // Loop through the data range (April 2025 - March 2026)
-    let currentDateIterator = new Date(dataStartDate);
-    const today = new Date();
-
-    while (currentDateIterator <= today && currentDateIterator <= dataEndDate) {
-        const year = currentDateIterator.getFullYear();
-        const month = (currentDateIterator.getMonth() + 1).toString().padStart(2, '0');
-        const optionValue = `${year}-${month}`;
-        const optionText = currentDateIterator.toLocaleString('en-IN', {
-            year: 'numeric',
-            month: 'long'
-        });
-        
-        monthOptions.push({ value: optionValue, text: optionText });
-        
-        // Move to the next month
-        currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
+    fySelect.innerHTML = '';
+    for (let fy = firstFYStart; fy <= currentFYStart; fy++) {
+        const option = document.createElement('option');
+        option.value = fy;
+        option.textContent = getFYLabel(fy);
+        fySelect.appendChild(option);
     }
-    
-    // Populate both select elements
-    monthOptions.forEach((optionData, index) => {
-        const fromOption = document.createElement('option');
-        fromOption.value = optionData.value;
-        fromOption.textContent = optionData.text;
-        fromMonthSelect.appendChild(fromOption);
-        
-        const toOption = document.createElement('option');
-        toOption.value = optionData.value;
-        toOption.textContent = optionData.text;
-        toMonthSelect.appendChild(toOption);
+    fySelect.value = currentFYStart;
 
-        // Set default selection: From = first month, To = last month available
-        if (index === 0) {
-            fromMonthSelect.value = optionData.value;
-        }
-        if (index === monthOptions.length - 1) {
-            toMonthSelect.value = optionData.value;
-        }
-    });
+    populateMonthRangeSelectors();
 
-    // Existing logic for Company and Branch remains the same
+    // Company select
     companySelect.innerHTML = '<option value="">All Companies</option>';
     Array.from(companies).sort().forEach(company => {
         const option = document.createElement('option');
@@ -238,6 +241,7 @@ function populateFilters() {
         companySelect.appendChild(option);
     });
 
+    // Branch select
     branchSelect.innerHTML = '<option value="">All Branches</option>';
     Array.from(branches).sort().forEach(branch => {
         const option = document.createElement('option');
@@ -245,6 +249,50 @@ function populateFilters() {
         option.textContent = branch;
         branchSelect.appendChild(option);
     });
+}
+
+// --- Populate From/To month selectors based on selected FY ---
+function populateMonthRangeSelectors() {
+    const fyStartYear = parseInt(fySelect.value);
+    const fyMonths = getFYMonths(fyStartYear);
+
+    fromMonthSelect.innerHTML = '';
+    toMonthSelect.innerHTML = '';
+
+    fyMonths.forEach(m => {
+        const optFrom = document.createElement('option');
+        optFrom.value = m.value;
+        optFrom.textContent = m.label;
+        fromMonthSelect.appendChild(optFrom);
+
+        const optTo = document.createElement('option');
+        optTo.value = m.value;
+        optTo.textContent = m.label;
+        toMonthSelect.appendChild(optTo);
+    });
+
+    // Default: From = April of FY, To = latest available
+    if (fyMonths.length > 0) {
+        fromMonthSelect.value = fyMonths[0].value;
+        toMonthSelect.value = fyMonths[fyMonths.length - 1].value;
+    }
+
+    // Update header label
+    const fyStartYear2 = parseInt(fySelect.value);
+    if (dateRangeLabel) {
+        dateRangeLabel.textContent = `Data for ${getFYLabel(fyStartYear2)} (April ${fyStartYear2} - March ${fyStartYear2 + 1})`;
+    }
+}
+
+// --- Ensure To is never before From ---
+function syncToMonth() {
+    const fromVal = fromMonthSelect.value;
+    Array.from(toMonthSelect.options).forEach(opt => {
+        opt.disabled = opt.value < fromVal;
+    });
+    if (toMonthSelect.value < fromVal) {
+        toMonthSelect.value = fromVal;
+    }
 }
 
 // --- Filter Data based on selections (UPDATED FOR DATE RANGE) ---
@@ -301,7 +349,7 @@ function getFilteredData(ignoreMonthFilter = false) {
 // --- Report Generation ---
 function generateReport() {
     const filteredDataForOverallAndCompany = getFilteredData(false);
-    const filteredDataForMonthlyTrends = getFilteredData(true); // Always use all months for monthly trends, regardless of filter
+    const filteredDataForMonthlyTrends = getFilteredData(false); // Respect the selected FY/month range
 
     freshCustomerDetailsMap = new Map();
     freshStaffParticipationMap = new Map();
@@ -677,8 +725,9 @@ function closeCustomerDetailsModal() {
     customerDetailsModal.style.display = 'none';
 }
 
-// --- Event Listeners (UPDATED FOR DATE RANGE) ---
-fromMonthSelect.addEventListener('change', generateReport);
+// --- Event Listeners ---
+fySelect.addEventListener('change', () => { populateMonthRangeSelectors(); generateReport(); });
+fromMonthSelect.addEventListener('change', () => { syncToMonth(); generateReport(); });
 toMonthSelect.addEventListener('change', generateReport);
 companySelect.addEventListener('change', generateReport);
 branchSelect.addEventListener('change', generateReport);
