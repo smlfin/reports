@@ -9,13 +9,13 @@ let headers = []; // Stores CSV headers
 let allCompanyNames = []; // Stores all unique company names for search functionality
 let allStaffNames = []; // Stores all unique staff names for search functionality
 
-// --- Fixed Date Range for Data Validity (April 2025 - Current Month) ---
-const dataStartDate = new Date('2025-04-01T00:00:00'); // April 1, 2025, 00:00:00 local time
-const currentDate = new Date(); // Current date and time
-const dataEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59); // End of the current month
+// --- Current Date ---
+const currentDate = new Date();
 
 // --- DOM Elements ---
-const monthSelect = document.getElementById('month-select');
+const fySelect = document.getElementById('fy-select');
+const monthFromSelect = document.getElementById('month-from-select');
+const monthToSelect = document.getElementById('month-to-select');
 const companySearchInput = document.getElementById('company-search');
 const companySelect = document.getElementById('company-select');
 const staffSearchInput = document.getElementById('staff-search');
@@ -172,10 +172,10 @@ async function init() {
             }
 
             const dateObj = parseDate(parsedRow[dateColIndex]);
-            if (!dateObj || dateObj < dataStartDate || dateObj > dataEndDate) {
-                return null; // Skip rows with invalid or out-of-range dates
+            if (!dateObj) {
+                return null; // Skip rows with invalid dates
             }
-            parsedRow[dateColIndex] = dateObj; // Replace date string with Date object
+            parsedRow[dateColIndex] = dateObj;
             
             return parsedRow;
         }).filter(row => row !== null); // Remove null entries (invalid/out of range data)
@@ -188,6 +188,29 @@ async function init() {
     }
 }
 
+// --- FY Helper Functions ---
+function getFYLabel(startYear) {
+    return `FY ${startYear}-${String(startYear + 1).slice(-2)}`;
+}
+
+function getFYStartYear(date) {
+    return date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+function getFYMonths(fyStartYear) {
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+        const month = (3 + i) % 12; // April=3 ... March=2
+        const year = i < 9 ? fyStartYear : fyStartYear + 1;
+        const value = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const label = new Date(year, month, 1).toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        if (new Date(year, month, 1) <= currentDate) {
+            months.push({ value, label });
+        }
+    }
+    return months;
+}
+
 // --- Filter Population ---
 function populateFilters() {
     const companies = new Set();
@@ -195,6 +218,14 @@ function populateFilters() {
     
     const companyColIndex = headers.indexOf('COMPANY NAME');
     const staffNameColIndex = headers.indexOf('STAFF NAME');
+    const dateColIndex = headers.indexOf('DATE');
+
+    // Find earliest date in data to build FY list
+    let earliestDate = currentDate;
+    allData.forEach(row => {
+        const d = row[dateColIndex];
+        if (d && d < earliestDate) earliestDate = d;
+    });
 
     allData.forEach(row => {
         if (companyColIndex !== -1 && row[companyColIndex]) companies.add(row[companyColIndex]);
@@ -204,33 +235,57 @@ function populateFilters() {
     allCompanyNames = Array.from(companies).sort();
     allStaffNames = Array.from(staffNames).sort();
 
-    // Populate Company Select
     populateCompanySelect(allCompanyNames);
-
-    // Populate Staff Select (initially with all staff)
     populateStaffSelect(allStaffNames);
 
-    // Populate Month Select
-    monthSelect.innerHTML = '<option value="">All Months</option>';
-    const startYear = dataStartDate.getFullYear();
-    const startMonth = dataStartDate.getMonth();
-    const endYear = dataEndDate.getFullYear();
-    const endMonth = dataEndDate.getMonth();
+    // Build FY selector
+    const firstFYStart = getFYStartYear(earliestDate);
+    const currentFYStart = getFYStartYear(currentDate);
 
-    for (let year = startYear; year <= endYear; year++) {
-        const currentMonth = (year === startYear) ? startMonth : 0;
-        const lastMonth = (year === endYear) ? endMonth : 11;
+    fySelect.innerHTML = '';
+    for (let fy = firstFYStart; fy <= currentFYStart; fy++) {
+        const option = document.createElement('option');
+        option.value = fy;
+        option.textContent = getFYLabel(fy);
+        fySelect.appendChild(option);
+    }
+    fySelect.value = currentFYStart;
 
-        for (let month = currentMonth; month <= lastMonth; month++) {
-            const date = new Date(year, month, 1);
-            const monthName = date.toLocaleString('en-US', { year: 'numeric', month: 'long' });
-            const optionValue = `${year}-${String(month + 1).padStart(2, '0')}`; // e.g., "2025-04"
+    populateMonthRangeSelectors();
+}
 
-            const option = document.createElement('option');
-            option.value = optionValue;
-            option.textContent = monthName;
-            monthSelect.appendChild(option);
-        }
+function populateMonthRangeSelectors() {
+    const fyStartYear = parseInt(fySelect.value);
+    const fyMonths = getFYMonths(fyStartYear);
+
+    monthFromSelect.innerHTML = '';
+    monthToSelect.innerHTML = '';
+
+    fyMonths.forEach(m => {
+        const optFrom = document.createElement('option');
+        optFrom.value = m.value;
+        optFrom.textContent = m.label;
+        monthFromSelect.appendChild(optFrom);
+
+        const optTo = document.createElement('option');
+        optTo.value = m.value;
+        optTo.textContent = m.label;
+        monthToSelect.appendChild(optTo);
+    });
+
+    if (fyMonths.length > 0) {
+        monthFromSelect.value = fyMonths[0].value;
+        monthToSelect.value = fyMonths[fyMonths.length - 1].value;
+    }
+}
+
+function syncToMonth() {
+    const fromVal = monthFromSelect.value;
+    Array.from(monthToSelect.options).forEach(opt => {
+        opt.disabled = opt.value < fromVal;
+    });
+    if (monthToSelect.value < fromVal) {
+        monthToSelect.value = fromVal;
     }
 }
 
@@ -257,7 +312,8 @@ function populateCompanySelect(companyList) {
 
 // --- Filter Data ---
 function getFilteredData() {
-    const selectedMonth = monthSelect.value;
+    const fromVal = monthFromSelect.value;
+    const toVal = monthToSelect.value;
     const selectedCompany = companySelect.value;
     const selectedStaff = staffSelect.value;
 
@@ -265,23 +321,28 @@ function getFilteredData() {
     const staffNameColIndex = headers.indexOf('STAFF NAME');
     const dateColIndex = headers.indexOf('DATE');
 
+    let filterStartDate = null;
+    let filterEndDate = null;
+
+    if (fromVal) {
+        const [y, m] = fromVal.split('-').map(Number);
+        filterStartDate = new Date(y, m - 1, 1, 0, 0, 0);
+    }
+    if (toVal) {
+        const [y, m] = toVal.split('-').map(Number);
+        filterEndDate = new Date(y, m, 0, 23, 59, 59); // Last day of to-month
+    }
+
     return allData.filter(row => {
-        // Filter by Month
-        if (selectedMonth && dateColIndex !== -1) {
-            const rowDate = row[dateColIndex];
-            const rowMonth = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
-            if (rowMonth !== selectedMonth) return false;
+        const rowDate = row[dateColIndex];
+
+        if (rowDate && (filterStartDate || filterEndDate)) {
+            if (filterStartDate && rowDate < filterStartDate) return false;
+            if (filterEndDate && rowDate > filterEndDate) return false;
         }
 
-        // Filter by Company
-        if (selectedCompany && companyColIndex !== -1 && row[companyColIndex] !== selectedCompany) {
-            return false;
-        }
-
-        // Filter by Staff
-        if (selectedStaff && staffNameColIndex !== -1 && row[staffNameColIndex] !== selectedStaff) {
-            return false;
-        }
+        if (selectedCompany && companyColIndex !== -1 && row[companyColIndex] !== selectedCompany) return false;
+        if (selectedStaff && staffNameColIndex !== -1 && row[staffNameColIndex] !== selectedStaff) return false;
 
         return true;
     });
@@ -679,7 +740,9 @@ function showEmployeeDrilldownModal(companyName, monthKey, type, employeeSet) {
 
 
 // --- Event Listeners ---
-monthSelect.addEventListener('change', generateReport);
+fySelect.addEventListener('change', () => { populateMonthRangeSelectors(); generateReport(); });
+monthFromSelect.addEventListener('change', () => { syncToMonth(); generateReport(); });
+monthToSelect.addEventListener('change', generateReport);
 companySelect.addEventListener('change', generateReport);
 staffSelect.addEventListener('change', generateReport); // Regenerate report when staff selection changes
 companySearchInput.addEventListener('input', () => {
