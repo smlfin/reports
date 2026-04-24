@@ -45,10 +45,14 @@
     <div class="container">
         <header>
             <h1>Fresh Customers/Staff Report</h1>
-            <p class="date-range">Data for April 2025 - March 2026</p>
+            <p class="date-range" id="date-range-label">Data for April 2025 - March 2026</p>
             </header>
 
         <section class="report-controls">
+            <div class="filter-group">
+                <label for="fy-select">Financial Year:</label>
+                <select id="fy-select"></select>
+            </div>
             <div class="filter-group">
                 <label for="from-month-select">Select From Month:</label>
                 <select id="from-month-select"></select>
@@ -277,4 +281,3 @@
     <script src="fresh_old_report.js"></script>
 </body>
 </html>
-
