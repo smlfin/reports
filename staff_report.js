@@ -11,10 +11,9 @@ let freshCustomerDetailsMap = new Map();
 let myChart = null;
 let myCumulativeChart = null;
 
-// --- Fixed Date Range for Data Validity ---
-const dataStartDate = new Date('2025-04-01T00:00:00');
-const currentDate = new Date(); // Current date and time
-// Max date is the end of the current day
+// --- Current Date ---
+const currentDate = new Date();
+// Max date is end of the current day
 const maxDataEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
 
 
@@ -23,7 +22,10 @@ let reportContainer = null; // Changed to let and null
 let companySelect = null; // Changed to let and null
 let staffSearchInput = null; // Changed to let and null
 let staffSelect = null; // Changed to let and null
-let monthSelect = null; // Changed to let and null
+let monthSelect = null; // kept for backward compat with date-range clear logic
+let fySelect = null;
+let monthFromSelect = null;
+let monthToSelect = null;
 // NEW: Date Range Inputs
 let startDateInput = null; // Changed to let and null
 let endDateInput = null; // Changed to let and null
@@ -236,7 +238,10 @@ async function init() {
         companySelect = document.getElementById('company-select');
         staffSearchInput = document.getElementById('staff-search');
         staffSelect = document.getElementById('staff-select');
-        monthSelect = document.getElementById('month-select');
+        fySelect = document.getElementById('fy-select');
+        monthFromSelect = document.getElementById('month-from-select');
+        monthToSelect = document.getElementById('month-to-select');
+        monthSelect = null; // no longer in DOM
         startDateInput = document.getElementById('start-date');
         endDateInput = document.getElementById('end-date');
 
@@ -281,26 +286,35 @@ async function init() {
             generateReport();
         });
 
-        monthSelect.addEventListener('change', () => {
-            // Clear date range if a month is selected
-            startDateInput.value = '';
-            endDateInput.value = '';
+        fySelect.addEventListener('change', () => {
+            populateMonthRangeSelectors();
+            clearDateRange();
             generateReport();
         });
 
-        // NEW: Event listeners for date range inputs (mutually exclusive with month)
+        monthFromSelect.addEventListener('change', () => {
+            syncToMonth();
+            clearDateRange();
+            generateReport();
+        });
+
+        monthToSelect.addEventListener('change', () => {
+            clearDateRange();
+            generateReport();
+        });
+
+        // NEW: Event listeners for date range inputs (mutually exclusive with month range)
         startDateInput.addEventListener('change', () => {
-            // Clear month selection if a date range is set
             if (startDateInput.value || endDateInput.value) {
-                monthSelect.value = '';
+                // Reset month range to full FY to signal "no month filter active"
+                populateMonthRangeSelectors();
             }
             generateReport();
         });
 
         endDateInput.addEventListener('change', () => {
-            // Clear month selection if a date range is set
             if (startDateInput.value || endDateInput.value) {
-                monthSelect.value = '';
+                populateMonthRangeSelectors();
             }
             generateReport();
         });
@@ -336,8 +350,7 @@ async function init() {
             }
             if (dateColIndex !== -1 && parsedRow[dateColIndex]) {
                 const dateObj = parseDate(parsedRow[dateColIndex]);
-                // Use maxDataEndDate to filter rows newer than today
-                if (dateObj && dateObj >= dataStartDate && dateObj <= maxDataEndDate) {
+                if (dateObj && dateObj <= maxDataEndDate) {
                     parsedRow[dateColIndex] = dateObj;
                     return parsedRow;
                 }
@@ -350,6 +363,69 @@ async function init() {
         console.error('Error initializing report:', error);
         document.querySelector('.report-controls').innerHTML = '<p>Error loading data. Please try again later.</p>';
     }
+}
+
+// --- FY Helper Functions ---
+function getFYLabel(startYear) {
+    return `FY ${startYear}-${String(startYear + 1).slice(-2)}`;
+}
+
+function getFYStartYear(date) {
+    return date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+function getFYMonths(fyStartYear) {
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+        const month = (3 + i) % 12; // April=3 ... March=2
+        const year = i < 9 ? fyStartYear : fyStartYear + 1;
+        const value = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const label = new Date(year, month, 1).toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+        if (new Date(year, month, 1) <= currentDate) {
+            months.push({ value, label });
+        }
+    }
+    return months;
+}
+
+function populateMonthRangeSelectors() {
+    const fyStartYear = parseInt(fySelect.value);
+    const fyMonths = getFYMonths(fyStartYear);
+
+    monthFromSelect.innerHTML = '';
+    monthToSelect.innerHTML = '';
+
+    fyMonths.forEach(m => {
+        const optFrom = document.createElement('option');
+        optFrom.value = m.value;
+        optFrom.textContent = m.label;
+        monthFromSelect.appendChild(optFrom);
+
+        const optTo = document.createElement('option');
+        optTo.value = m.value;
+        optTo.textContent = m.label;
+        monthToSelect.appendChild(optTo);
+    });
+
+    if (fyMonths.length > 0) {
+        monthFromSelect.value = fyMonths[0].value;
+        monthToSelect.value = fyMonths[fyMonths.length - 1].value;
+    }
+}
+
+function syncToMonth() {
+    const fromVal = monthFromSelect.value;
+    Array.from(monthToSelect.options).forEach(opt => {
+        opt.disabled = opt.value < fromVal;
+    });
+    if (monthToSelect.value < fromVal) {
+        monthToSelect.value = fromVal;
+    }
+}
+
+function clearDateRange() {
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) endDateInput.value = '';
 }
 
 // --- Filter Population ---
@@ -376,30 +452,32 @@ function populateFilters() {
     allStaffNames = Array.from(staffNames).sort();
     filterStaffList();
 
-    monthSelect.innerHTML = '<option value="">All Months</option>';
-    let currentDateIterator = new Date(dataStartDate);
-    // Use the maximum date available in the data
-    const filterEndDate = new Date(maxDataEndDate.getFullYear(), maxDataEndDate.getMonth(), 1); 
+    // Find earliest date in data to build FY list
+    const dateColIndex2 = headers.indexOf('DATE');
+    let earliestDate = currentDate;
+    allData.forEach(row => {
+        const d = row[dateColIndex2];
+        if (d && d < earliestDate) earliestDate = d;
+    });
 
-    while (currentDateIterator <= filterEndDate) {
-        const year = currentDateIterator.getFullYear();
-        const month = (currentDateIterator.getMonth() + 1).toString().padStart(2, '0');
-        const optionValue = `${year}-${month}`;
-        const optionText = currentDateIterator.toLocaleString('en-IN', { year: 'numeric', month: 'long' });
+    // Build FY selector
+    const firstFYStart = getFYStartYear(earliestDate);
+    const currentFYStart = getFYStartYear(currentDate);
+
+    fySelect.innerHTML = '';
+    for (let fy = firstFYStart; fy <= currentFYStart; fy++) {
         const option = document.createElement('option');
-        option.value = optionValue;
-        option.textContent = optionText;
-        monthSelect.appendChild(option);
-        currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
+        option.value = fy;
+        option.textContent = getFYLabel(fy);
+        fySelect.appendChild(option);
     }
-    
-    // NEW: Set min/max for date inputs
+    fySelect.value = currentFYStart;
+
+    populateMonthRangeSelectors();
+
+    // Set min/max for date inputs
     const maxDate = formatDateToInput(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()));
-    const minDate = formatDateToInput(dataStartDate);
-    
-    startDateInput.min = minDate;
     startDateInput.max = maxDate;
-    endDateInput.min = minDate;
     endDateInput.max = maxDate;
 }
 
@@ -444,7 +522,8 @@ function generateReport() {
     reportContainer.classList.remove('hidden');
     detailedEntriesContainer.classList.add('hidden');
 
-    const selectedMonth = monthSelect.value;
+    const fromVal = monthFromSelect ? monthFromSelect.value : '';
+    const toVal = monthToSelect ? monthToSelect.value : '';
 
     // NEW: Date Range variables
     const startDateVal = startDateInput.value;
@@ -454,10 +533,8 @@ function generateReport() {
     if (startDateVal && endDateVal) {
         if (new Date(startDateVal) > new Date(endDateVal)) {
             alert('Start date cannot be after end date. Please correct the date range.');
-            // Reset dates and return to prevent invalid report generation
             startDateInput.value = '';
             endDateInput.value = '';
-            monthSelect.value = '';
             return;
         }
     }
@@ -467,34 +544,29 @@ function generateReport() {
     const customerNameColIndex = headers.indexOf('CUSTOMER NAME');
     const dateColIndex = headers.indexOf('DATE');
 
+    // Build the active date filter: date-range inputs take priority when set
     let filterStartDate = null;
     let filterEndDate = null;
     let isDateRangeActive = false;
 
-    // Only consider Date Range if no month is selected AND at least one date is present.
-    if (!selectedMonth && (startDateVal || endDateVal)) {
+    if (startDateVal || endDateVal) {
         isDateRangeActive = true;
-
         if (startDateVal) {
-            const parts = startDateVal.split('-'); // YYYY-MM-DD
-            // Set time to start of day (00:00:00)
+            const parts = startDateVal.split('-');
             filterStartDate = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0);
         }
-
         if (endDateVal) {
-            const parts = endDateVal.split('-'); // YYYY-MM-DD
-            // Set time to end of day (23:59:59)
+            const parts = endDateVal.split('-');
             filterEndDate = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59);
         }
-
-        // If only one date is provided, bound the range by the overall data limits
-        if (filterStartDate && !filterEndDate) {
-            filterEndDate = maxDataEndDate;
-        }
-
-        if (!filterStartDate && filterEndDate) {
-            filterStartDate = dataStartDate;
-        }
+        if (filterStartDate && !filterEndDate) filterEndDate = maxDataEndDate;
+        if (!filterStartDate && filterEndDate) filterStartDate = new Date(0);
+    } else if (fromVal && toVal) {
+        // Use the From/To month range
+        const [fy, fm] = fromVal.split('-').map(Number);
+        const [ty, tm] = toVal.split('-').map(Number);
+        filterStartDate = new Date(fy, fm - 1, 1, 0, 0, 0);
+        filterEndDate = new Date(ty, tm, 0, 23, 59, 59); // last day of to-month
     }
 
 
@@ -505,24 +577,12 @@ function generateReport() {
         let matchStaff = !selectedStaff || rowStaff === selectedStaff;
         if (!matchStaff) return false;
 
-        // Apply Time Period Filter: Month OR Date Range
-        if (selectedMonth) {
-            // Month Filter (Active)
-            let matchMonth = rowDate && `${rowDate.getFullYear()}-${(rowDate.getMonth() + 1).toString().padStart(2, '0')}` === selectedMonth;
-            return matchMonth;
-        } else if (isDateRangeActive) {
-            // Date Range Filter (Active, and Month Filter is not active)
-            let inRange = true;
-            if (filterStartDate && rowDate < filterStartDate) {
-                inRange = false;
-            }
-            if (filterEndDate && rowDate > filterEndDate) {
-                inRange = false;
-            }
-            return inRange;
+        // Apply date filter (From/To range or explicit date-range inputs)
+        if (filterStartDate || filterEndDate) {
+            if (filterStartDate && rowDate < filterStartDate) return false;
+            if (filterEndDate && rowDate > filterEndDate) return false;
         }
 
-        // If neither month nor date range is active, all staff data passes.
         return true;
     });
 
