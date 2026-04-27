@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -45,8 +45,20 @@
     <h1>Analysis of Top Performers and Product Trends</h1>
     <div class="report-controls">
         <div class="filter-group">
+            <label for="fy-select">Financial Year:</label>
+            <select id="fy-select"></select>
+        </div>
+        <div class="filter-group">
+            <label for="month-from-select">From Month:</label>
+            <select id="month-from-select"></select>
+        </div>
+        <div class="filter-group">
+            <label for="month-to-select">To Month:</label>
+            <select id="month-to-select"></select>
+        </div>
+        <div class="filter-group">
             <label for="min-net-growth">Minimum Net Growth for Performer (₹):</label>
-            <input type="number" id="min-net-growth" value="2000000" min="100000" step="100000"> 
+            <input type="number" id="min-net-growth" value="2000000" min="100000" step="100000">
         </div>
         <div class="filter-group">
             <button onclick="generateStudy()">Run Analysis</button>
@@ -77,6 +89,7 @@
                 <thead>
                     <tr>
                         <th>Staff Name</th>
+                        <th>Total Inflow</th>
                         <th>Total Net Growth</th>
                     </tr>
                 </thead>
@@ -105,9 +118,40 @@
             </table>
         </div>
 
-    </div>
+        <div class="report-section" id="staff-behaviour-outer-section">
+            <h2>Staff Behaviour Insights</h2>
+            <p class="section-note">Click any card to expand and see that staff member's monthly trend, product mix, and company breakdown.</p>
+            <div id="staff-behaviour-section"></div>
+        </div>
 
-    <script src="performer_product_study.js"></script>
+    </div><!-- /#report-container -->
+
+    <style>
+        .staff-behaviour-card { border: 1px solid #dde3ec; border-radius: 8px; margin-bottom: 12px; overflow: hidden; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .behaviour-card-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; background: #f4f7fb; flex-wrap: wrap; gap: 8px; }
+        .behaviour-card-header:hover { background: #e8eef7; }
+        .behaviour-card-title { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .staff-name-badge { font-weight: 700; font-size: 1rem; color: #1a3a5c; margin-right: 6px; }
+        .behaviour-pill { background: #e0eaff; color: #2c4f8a; border-radius: 12px; padding: 2px 10px; font-size: 0.82rem; }
+        .behaviour-card-summary { display: flex; gap: 16px; font-size: 0.9rem; align-items: center; font-weight: 600; }
+        .behaviour-card-summary .collapse-icon { font-size: 0.85rem; color: #777; margin-left: 6px; }
+        .behaviour-card-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+        .behaviour-card-body.collapsed { display: none; }
+        .behaviour-section h4 { margin: 0 0 8px 0; font-size: 0.92rem; color: #2c4f8a; border-bottom: 1px solid #dde3ec; padding-bottom: 4px; }
+        .behaviour-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 700px) { .behaviour-two-col { grid-template-columns: 1fr; } }
+        .month-trend-strip { display: flex; flex-wrap: wrap; gap: 6px; }
+        .month-badge { border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; text-align: center; min-width: 72px; line-height: 1.4; }
+        .month-badge.positive { background: #d4edda; color: #155724; }
+        .month-badge.negative { background: #f8d7da; color: #721c24; }
+        .mini-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+        .mini-table th, .mini-table td { padding: 5px 8px; border: 1px solid #e0e6ef; text-align: right; }
+        .mini-table th:first-child, .mini-table td:first-child { text-align: left; }
+        .mini-table thead { background: #f0f4fb; }
+        .positive { color: #155724; }
+        .negative { color: #721c24; }
+        .section-note { color: #666; font-size: 0.88rem; margin-bottom: 12px; }
+    </style>
 </body>
 
 </html>
