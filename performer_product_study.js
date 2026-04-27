@@ -193,20 +193,33 @@ function getFilteredData() {
 
 // --- Init ---
 async function init() {
+    console.log('[PPS] init() started');
+    console.log('[PPS] DOM check — fySelect:', fySelect, '| monthFromSelect:', monthFromSelect, '| monthToSelect:', monthToSelect);
+    console.log('[PPS] DOM check — reportContainer:', reportContainer, '| minNetGrowthInput:', minNetGrowthInput);
+
     try {
+        console.log('[PPS] Fetching CSV from:', csvUrl);
         const response = await fetch(csvUrl);
+        console.log('[PPS] Fetch response status:', response.status, response.ok);
         const csvText = await response.text();
+        console.log('[PPS] CSV text length:', csvText.length, '| First 200 chars:', csvText.substring(0, 200));
+
         const rows = csvText.trim().split('\n');
-        if (rows.length === 0) return;
+        console.log('[PPS] Total rows (including header):', rows.length);
+        if (rows.length === 0) { console.error('[PPS] No rows found — aborting'); return; }
 
         headers = parseLine(rows[0]).map(h => h.trim());
+        console.log('[PPS] Headers parsed:', headers);
+
         const dateIdx = headers.indexOf('DATE');
         const staffIdx = headers.indexOf('STAFF NAME');
+        console.log('[PPS] DATE column index:', dateIdx, '| STAFF NAME column index:', staffIdx);
 
-        allData = rows.slice(1).map(row => {
+        allData = rows.slice(1).map((row, i) => {
             const parsed = parseLine(row);
             while (parsed.length < headers.length) parsed.push(null);
             const dateObj = dateIdx !== -1 ? parseDate(parsed[dateIdx]) : null;
+            if (i < 3) console.log(`[PPS] Row ${i+1} raw date value: "${parsed[dateIdx]}" → parsed:`, dateObj, '| staff:', parsed[staffIdx]);
             if (dateObj && staffIdx !== -1 && parsed[staffIdx]) {
                 parsed[dateIdx] = dateObj;
                 return parsed;
@@ -214,7 +227,9 @@ async function init() {
             return null;
         }).filter(Boolean);
 
-        // Build FY selector — fall back to current FY if no data yet
+        console.log('[PPS] allData rows after filtering:', allData.length);
+
+        // Build FY selector
         let earliest = allData.length > 0
             ? allData.reduce((min, row) => {
                 const d = row[dateIdx];
@@ -222,26 +237,36 @@ async function init() {
               }, currentDate)
             : currentDate;
 
+        console.log('[PPS] Earliest date found:', earliest);
+
         const firstFY = getFYStartYear(earliest);
         const curFY = getFYStartYear(currentDate);
+        console.log('[PPS] FY range: firstFY =', firstFY, '| curFY =', curFY);
+
         fySelect.innerHTML = '';
         for (let fy = firstFY; fy <= curFY; fy++) {
             const opt = document.createElement('option');
             opt.value = String(fy);
             opt.textContent = getFYLabel(fy);
             fySelect.appendChild(opt);
+            console.log('[PPS] Added FY option:', opt.value, opt.textContent);
         }
         fySelect.value = String(curFY);
+        console.log('[PPS] fySelect.value after set:', fySelect.value, '| options count:', fySelect.options.length);
+
         populateMonthRangeSelectors();
+        console.log('[PPS] monthFromSelect options:', monthFromSelect.options.length, '| monthToSelect options:', monthToSelect.options.length);
 
         fySelect.addEventListener('change', () => { populateMonthRangeSelectors(); generateStudy(); });
         monthFromSelect.addEventListener('change', () => { syncToMonth(); generateStudy(); });
         monthToSelect.addEventListener('change', generateStudy);
 
+        console.log('[PPS] Calling generateStudy()');
         generateStudy();
     } catch (err) {
-        console.error('Error initializing report:', err);
-        reportContainer.innerHTML = '<p>Error loading data.</p>';
+        console.error('[PPS] ERROR in init():', err);
+        console.error('[PPS] Error stack:', err.stack);
+        reportContainer.innerHTML = `<p style="color:red">Error loading data: ${err.message}</p>`;
     }
 }
 
