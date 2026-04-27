@@ -1,4 +1,4 @@
-// performer_product_study.js// performer_product_study.js
+// performer_product_study.js
 
 // --- Configuration ---
 const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1OOdGnJhw1k6U15Aybn_2JWex_qTShP6w7CXm0_auXnc8vFnvlabPZjK3lsjqkHgn6NgeKKPyu9qW/pub?gid=1720680457&single=true&output=csv';
@@ -488,3 +488,7 @@ function renderProductBreakdownChart(labels, data) {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Expose for inline onclick
+window.generateStudy = generateStudy;
+window.toggleBehaviourCard = toggleBehaviourCard;
