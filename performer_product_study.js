@@ -149,8 +149,15 @@ function populateMonthRangeSelectors() {
     monthFromSelect.innerHTML = '';
     monthToSelect.innerHTML = '';
     fyMonths.forEach(m => {
-        monthFromSelect.appendChild(Object.assign(document.createElement('option'), { value: m.value, textContent: m.label }));
-        monthToSelect.appendChild(Object.assign(document.createElement('option'), { value: m.value, textContent: m.label }));
+        const optFrom = document.createElement('option');
+        optFrom.value = m.value;
+        optFrom.textContent = m.label;
+        monthFromSelect.appendChild(optFrom);
+
+        const optTo = document.createElement('option');
+        optTo.value = m.value;
+        optTo.textContent = m.label;
+        monthToSelect.appendChild(optTo);
     });
     if (fyMonths.length > 0) {
         monthFromSelect.value = fyMonths[0].value;
@@ -207,17 +214,24 @@ async function init() {
             return null;
         }).filter(Boolean);
 
-        // Build FY selector
-        let earliest = currentDate;
-        allData.forEach(row => { const d = row[dateIdx]; if (d && d < earliest) earliest = d; });
+        // Build FY selector — fall back to current FY if no data yet
+        let earliest = allData.length > 0
+            ? allData.reduce((min, row) => {
+                const d = row[dateIdx];
+                return (d && d < min) ? d : min;
+              }, currentDate)
+            : currentDate;
 
         const firstFY = getFYStartYear(earliest);
         const curFY = getFYStartYear(currentDate);
         fySelect.innerHTML = '';
         for (let fy = firstFY; fy <= curFY; fy++) {
-            fySelect.appendChild(Object.assign(document.createElement('option'), { value: fy, textContent: getFYLabel(fy) }));
+            const opt = document.createElement('option');
+            opt.value = String(fy);
+            opt.textContent = getFYLabel(fy);
+            fySelect.appendChild(opt);
         }
-        fySelect.value = curFY;
+        fySelect.value = String(curFY);
         populateMonthRangeSelectors();
 
         fySelect.addEventListener('change', () => { populateMonthRangeSelectors(); generateStudy(); });
