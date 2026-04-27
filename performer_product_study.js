@@ -98,7 +98,12 @@ function getInflowOutflowHeaders() {
     });
 }
 
-// CORRECT net: sum all INF columns minus sum all OUT columns (matches staff_report.js pattern)
+// CORRECT: use pre-aggregated columns exactly as staff_report.js does
+function getRowNet(row) { return getValueFromRow(row, 'Net'); }
+function getRowInflow(row) { return getValueFromRow(row, 'INF Total'); }
+function getRowOutflow(row) { return getValueFromRow(row, 'OUT Total'); }
+
+// Keep these for product/company breakdown only (not for overall net)
 function getRowNetFromColumns(row, infOutHeaders) {
     let inf = 0, out = 0;
     infOutHeaders.forEach(h => {
@@ -277,14 +282,14 @@ function generateStudy() {
     const infOutHeaders = getInflowOutflowHeaders();
     const filteredData = getFilteredData();
 
-    // 1. Staff totals using CORRECT column-based net
+    // 1. Staff totals using pre-aggregated Net and INF Total columns (same as staff_report.js)
     const staffPerf = {};
     filteredData.forEach(row => {
         const name = row[staffIdx];
         if (!name) return;
         if (!staffPerf[name]) staffPerf[name] = { net: 0, inflow: 0 };
-        staffPerf[name].net += getRowNetFromColumns(row, infOutHeaders);
-        staffPerf[name].inflow += getRowInflowFromColumns(row, infOutHeaders);
+        staffPerf[name].net += getRowNet(row);
+        staffPerf[name].inflow += getRowInflow(row);
     });
 
     // 2. Identify performers
@@ -375,8 +380,8 @@ function renderStaffBehaviourInsights(performerData, performerNames, infOutHeade
         const s = sb[name];
         if (!s) return;
 
-        s.totalInflow += getRowInflowFromColumns(row, infOutHeaders);
-        s.totalNet += getRowNetFromColumns(row, infOutHeaders);
+        s.totalInflow += getRowInflow(row);
+        s.totalNet += getRowNet(row);
         s.txCount++;
 
         const cust = row[custIdx];
@@ -390,7 +395,7 @@ function renderStaffBehaviourInsights(performerData, performerNames, infOutHeade
         const rowDate = row[dateIdx];
         if (rowDate) {
             const ym = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
-            s.monthlyNet[ym] = (s.monthlyNet[ym] || 0) + getRowNetFromColumns(row, infOutHeaders);
+            s.monthlyNet[ym] = (s.monthlyNet[ym] || 0) + getRowNet(row);
         }
 
         infOutHeaders.forEach(h => {
